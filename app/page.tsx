@@ -136,6 +136,8 @@ export default function Home() {
 function EmployeeView() {
   const [completedCount, setCompletedCount] = useState(1);
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
+  const [lessonOpen, setLessonOpen] = useState(false);
+  const [favorites, setFavorites] = useState<number[]>([]);
   const [answer, setAnswer] = useState("");
   const [quizMessage, setQuizMessage] = useState("");
   const completion = Math.round((completedCount / modules.length) * 100);
@@ -155,34 +157,43 @@ function EmployeeView() {
       <div className="course-progress"><b>{completion}%</b><span>{completedCount} of {modules.length} complete</span></div>
     </section>
 
-    <section className="classroom-board" aria-label="Course module board">
-      <div className="board-label"><span>Bright Learners Academy</span><b>Orientation journey</b></div>
-      <div className="string string-1" /><div className="string string-2" /><div className="string string-3" /><div className="string string-4" /><div className="string string-5" />
-      <div className="board-modules">
+    <section className="professional-modules" aria-label="Course modules">
+      <div className="module-list-heading"><div><p className="eyebrow">Required learning</p><h3>Your modules</h3></div><span>Complete in order</span></div>
+      <div className="professional-module-grid">
         {modules.map((module, index) => {
           const complete = index < completedCount;
           const available = index <= completedCount;
-          return <article className={`pinned-module card-${index + 1} ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
-            <span className="push-pin" aria-hidden="true" />
-            <div className={`module-sticker ${module.colour}`}>{complete ? "✓" : module.icon}</div>
-            <small>Module {index + 1} • {module.time}</small>
-            <h3>{module.title}</h3>
-            <p>{module.eyebrow}</p>
-            <button disabled={!available} onClick={() => { setSelectedModule(index); setQuizMessage(""); setAnswer(""); }}>
-              {complete ? "Review lesson" : available ? "Open lesson" : "Locked"}
+          return <article className={`professional-module ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
+            <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); setQuizMessage(""); setAnswer(""); }}>
+              <div className="module-card-top"><span className={`module-number ${module.colour}`}>{complete ? "✓" : index + 1}</span><span className="module-time">{module.time}</span></div>
+              <div className="module-card-main"><small>Module {index + 1}</small><h3>{module.title}</h3></div>
+              <div className="module-hover-description"><p>{module.eyebrow}</p><span>{complete ? "Completed • Review anytime" : available ? "Ready to continue" : "Complete the previous module to unlock"}</span></div>
+              <div className="module-status-line"><i /><span>{complete ? "Complete" : available ? "In progress" : "Locked"}</span></div>
             </button>
-            {!available && <span className="card-lock" aria-label="Locked">⌕</span>}
+            {favorites.includes(index) && <span className="favorite-marker" aria-label="Favorited">★</span>}
           </article>;
         })}
       </div>
-      <p className="board-chalk">One step at a time. You’ve got this!</p>
     </section>
 
     <aside className="source-note"><b>Every lesson is traceable.</b><p>Official requirements link to their authority, document, page and section. Bright Learners policies are clearly labelled, and current official policy always takes priority.</p></aside>
 
-    {selectedModule !== null && <div className="lesson-backdrop" role="dialog" aria-modal="true" aria-labelledby="lesson-title">
+    {selectedModule !== null && !lessonOpen && <div className="module-preview-backdrop" role="dialog" aria-modal="true" aria-labelledby="module-preview-title" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectedModule(null); }}>
+      <section className="module-preview-card">
+        <button className="lesson-close" onClick={() => setSelectedModule(null)} aria-label="Close module">×</button>
+        <div className={`preview-icon ${modules[selectedModule].colour}`}>{selectedModule < completedCount ? "✓" : modules[selectedModule].icon}</div>
+        <p className="eyebrow">Module {selectedModule + 1} • {modules[selectedModule].time}</p>
+        <h2 id="module-preview-title">{modules[selectedModule].title}</h2>
+        <p className="preview-description">{modules[selectedModule].eyebrow}. Work through the lesson, review its official references, then complete the knowledge check with 100%.</p>
+        <div className="preview-meta"><span><b>{selectedModule < completedCount ? "Complete" : "Available"}</b>Status</span><span><b>100%</b>Pass mark</span><span><b>AB</b>Course</span></div>
+        <button className="primary-button preview-start" onClick={() => setLessonOpen(true)}>{selectedModule < completedCount ? "Review module" : "Start module"}</button>
+        <button className={`favorite-button ${favorites.includes(selectedModule) ? "active" : ""}`} onClick={() => setFavorites((current) => current.includes(selectedModule) ? current.filter((item) => item !== selectedModule) : [...current, selectedModule])}>{favorites.includes(selectedModule) ? "★ Favorited" : "☆ Add to favorites"}</button>
+      </section>
+    </div>}
+
+    {selectedModule !== null && lessonOpen && <div className="lesson-backdrop" role="dialog" aria-modal="true" aria-labelledby="lesson-title">
       <section className="lesson-drawer">
-        <button className="lesson-close" onClick={() => setSelectedModule(null)} aria-label="Close lesson">×</button>
+        <button className="lesson-close" onClick={() => { setLessonOpen(false); setSelectedModule(null); }} aria-label="Close lesson">×</button>
         <p className="eyebrow">Module {selectedModule + 1} • Alberta orientation</p>
         <h2 id="lesson-title">{modules[selectedModule].title}</h2>
         {selectedModule === 1 ? <HealthLesson answer={answer} setAnswer={setAnswer} checkAnswer={checkAnswer} message={quizMessage} /> :
