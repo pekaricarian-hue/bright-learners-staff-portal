@@ -16,10 +16,12 @@ import { auth } from "./firebase";
 type View = "employee" | "director" | "admin";
 
 const modules = [
-  { title: "Welcome & professional practice", time: "12 min", progress: 100, colour: "sun" },
-  { title: "Health, hygiene & illness", time: "18 min", progress: 64, colour: "blue" },
-  { title: "Cleaning toys & surfaces", time: "16 min", progress: 0, colour: "rose" },
-  { title: "Food, allergies & safe meals", time: "14 min", progress: 0, colour: "green" },
+  { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "☺" },
+  { title: "Healthy children, healthy centre", eyebrow: "Illness, hygiene & outbreaks", time: "18 min", colour: "blue", icon: "✚" },
+  { title: "Clean toys, safer play", eyebrow: "Cleaning & disinfection", time: "16 min", colour: "rose", icon: "✦" },
+  { title: "Food, allergies & safe meals", eyebrow: "Every bite handled safely", time: "14 min", colour: "green", icon: "♨" },
+  { title: "Diapering, sleep & daily care", eyebrow: "Safe routines", time: "18 min", colour: "lavender", icon: "☾" },
+  { title: "Emergencies & safe spaces", eyebrow: "Ready when it matters", time: "20 min", colour: "orange", icon: "!" },
 ];
 
 const locations = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
@@ -132,11 +134,78 @@ export default function Home() {
 }
 
 function EmployeeView() {
-  return <div className="content">
-    <section className="welcome-banner"><div><p className="handwritten">Hello, learner!</p><h2>Keep going—you’re making great progress.</h2><p>Your Alberta orientation has 3 modules left.</p></div><div className="progress-ring"><b>41%</b><span>complete</span></div></section>
-    <div className="section-heading"><div><p className="eyebrow">Assigned course</p><h2>Alberta employee orientation</h2></div><span className="province-tag">AB • 2026</span></div>
-    <div className="module-grid">{modules.map((m, i) => <article className="module-card" key={m.title}><div className={`module-icon ${m.colour}`}>{m.progress === 100 ? "✓" : i + 1}</div><small>Module {i + 1} • {m.time}</small><h3>{m.title}</h3><div className="bar"><i style={{ width: `${m.progress}%` }} /></div><div className="module-footer"><span>{m.progress}% complete</span><button>{m.progress === 100 ? "Review" : m.progress ? "Continue" : "Start"}</button></div></article>)}</div>
-    <aside className="source-note"><b>Source-aware learning</b><p>Each regulated lesson and question will link directly to its official authority, document, page and section. Current official policy always wins.</p></aside>
+  const [completedCount, setCompletedCount] = useState(1);
+  const [selectedModule, setSelectedModule] = useState<number | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [quizMessage, setQuizMessage] = useState("");
+  const completion = Math.round((completedCount / modules.length) * 100);
+
+  function checkAnswer() {
+    if (answer === "after-each-child") {
+      setQuizMessage("Correct — 100%. The next module is now unlocked.");
+      setCompletedCount((current) => Math.max(current, 2));
+    } else {
+      setQuizMessage("Not quite. Review the cleaning frequency and try again.");
+    }
+  }
+
+  return <div className="content learning-content">
+    <section className="learning-intro">
+      <div><p className="handwritten">Your learning path</p><h2>Alberta employee orientation</h2><p>Follow the string from one pinned lesson to the next. Finish each knowledge check with 100% to unlock the next card.</p></div>
+      <div className="course-progress"><b>{completion}%</b><span>{completedCount} of {modules.length} complete</span></div>
+    </section>
+
+    <section className="classroom-board" aria-label="Course module board">
+      <div className="board-label"><span>Bright Learners Academy</span><b>Orientation journey</b></div>
+      <div className="string string-1" /><div className="string string-2" /><div className="string string-3" /><div className="string string-4" /><div className="string string-5" />
+      <div className="board-modules">
+        {modules.map((module, index) => {
+          const complete = index < completedCount;
+          const available = index <= completedCount;
+          return <article className={`pinned-module card-${index + 1} ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
+            <span className="push-pin" aria-hidden="true" />
+            <div className={`module-sticker ${module.colour}`}>{complete ? "✓" : module.icon}</div>
+            <small>Module {index + 1} • {module.time}</small>
+            <h3>{module.title}</h3>
+            <p>{module.eyebrow}</p>
+            <button disabled={!available} onClick={() => { setSelectedModule(index); setQuizMessage(""); setAnswer(""); }}>
+              {complete ? "Review lesson" : available ? "Open lesson" : "Locked"}
+            </button>
+            {!available && <span className="card-lock" aria-label="Locked">⌕</span>}
+          </article>;
+        })}
+      </div>
+      <p className="board-chalk">One step at a time. You’ve got this!</p>
+    </section>
+
+    <aside className="source-note"><b>Every lesson is traceable.</b><p>Official requirements link to their authority, document, page and section. Bright Learners policies are clearly labelled, and current official policy always takes priority.</p></aside>
+
+    {selectedModule !== null && <div className="lesson-backdrop" role="dialog" aria-modal="true" aria-labelledby="lesson-title">
+      <section className="lesson-drawer">
+        <button className="lesson-close" onClick={() => setSelectedModule(null)} aria-label="Close lesson">×</button>
+        <p className="eyebrow">Module {selectedModule + 1} • Alberta orientation</p>
+        <h2 id="lesson-title">{modules[selectedModule].title}</h2>
+        {selectedModule === 1 ? <HealthLesson answer={answer} setAnswer={setAnswer} checkAnswer={checkAnswer} message={quizMessage} /> :
+          <div className="lesson-placeholder"><span>{modules[selectedModule].icon}</span><h3>This lesson is on the board.</h3><p>Its complete cited content and knowledge check are being assembled from Bright Learners orientation material and the applicable Alberta requirements.</p></div>}
+      </section>
+    </div>}
+  </div>;
+}
+
+function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: string; setAnswer: (value: string) => void; checkAnswer: () => void; message: string }) {
+  return <div className="lesson-body">
+    <div className="lesson-summary"><b>What you’ll be able to do</b><p>Recognize signs of contagious illness, respond safely, and understand when enhanced cleaning is required.</p></div>
+    <div className="lesson-section"><span className="lesson-number">1</span><div><h3>Watch for signs of illness</h3><p>Staff monitor children for symptoms including fever, vomiting or diarrhea, cough, shortness of breath, sore throat, chills, fatigue and conjunctivitis. Staff with symptoms of a contagious illness must not remain at the facility.</p><a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">AHS Health & Safety Guide, April 2025 — PDF page 18</a></div></div>
+    <div className="lesson-section"><span className="lesson-number">2</span><div><h3>Separate and notify</h3><p>A sick child should be supervised away from others while their parent or guardian is contacted for immediate pickup. Suspected outbreaks must be reported to AHS and managed using AHS direction.</p><a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">AHS Health & Safety Guide, April 2025 — PDF pages 19–20</a></div></div>
+    <div className="lesson-section"><span className="lesson-number">3</span><div><h3>Clean what the child used</h3><p>Bedding, toys and other items used during the 48 hours before symptoms and while the child was isolated should be cleaned and disinfected as soon as the child is picked up.</p><a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">AHS Health & Safety Guide, April 2025 — PDF page 20</a></div></div>
+    <fieldset className="knowledge-check"><legend>Knowledge check • 1 of 1</legend><p>A toy has been in a toddler’s mouth. When must it be cleaned and disinfected?</p>
+      <label><input type="radio" name="toy-frequency" value="weekly" checked={answer === "weekly"} onChange={(e) => setAnswer(e.target.value)} /> At the end of the week</label>
+      <label><input type="radio" name="toy-frequency" value="after-each-child" checked={answer === "after-each-child"} onChange={(e) => setAnswer(e.target.value)} /> After each child’s use and at least daily</label>
+      <label><input type="radio" name="toy-frequency" value="when-dirty" checked={answer === "when-dirty"} onChange={(e) => setAnswer(e.target.value)} /> Only when it looks dirty</label>
+      <button className="primary-button" type="button" onClick={checkAnswer} disabled={!answer}>Check my answer</button>
+      {message && <p className={`quiz-feedback ${message.startsWith("Correct") ? "correct" : ""}`} role="status">{message}</p>}
+      <small>Reference: AHS Health & Safety Guide, April 2025, PDF pages 21 and 37; Appendix G.</small>
+    </fieldset>
   </div>;
 }
 
