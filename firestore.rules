@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if owns(userId) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /courses/{courseId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /progress/{progressId} {
+      allow read: if signedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    match /inspections/{inspectionId} {
+      allow read: if signedIn() &&
+        (resource.data.directorId == request.auth.uid || isAdmin());
+      allow create: if signedIn() &&
+        request.resource.data.directorId == request.auth.uid;
+      allow update: if signedIn() &&
+        resource.data.directorId == request.auth.uid &&
+        request.resource.data.directorId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    match /auditEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create: if signedIn() &&
+        request.resource.data.actorId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
