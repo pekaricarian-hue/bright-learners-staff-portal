@@ -9,18 +9,10 @@
 /* Animated crayon-doodle login scene */
 .landing{background:#f9f3e4}
 .paper-noise{opacity:.12;z-index:1}
-.animated-doodles{position:absolute;inset:-2.5%;z-index:0;pointer-events:none;background-image:linear-gradient(90deg,rgba(249,243,228,.91) 0%,rgba(249,243,228,.3) 29%,rgba(249,243,228,.28) 69%,rgba(249,243,228,.84) 100%),url("/doodle-background.png");background-size:cover;background-position:center bottom;opacity:.84;animation:doodle-drift 18s ease-in-out infinite alternate;transform-origin:center}
-.float-doodle{position:absolute;z-index:1;font-family:var(--font-hand);font-weight:900;line-height:1;pointer-events:none;text-shadow:1px 1px 0 #fff8e6;animation:gentle-float 6s ease-in-out infinite}
-.star-one{left:43%;top:17%;font-size:45px;color:#e9ae17;transform:rotate(-12deg);animation-delay:-1.5s}
-.heart-one{left:3%;top:46%;font-size:48px;color:#e7796f;animation-delay:-3s}
-.sparkle-one{right:3%;top:48%;font-size:36px;color:#70b8c3;animation-delay:-4.2s}
-.swirl-one{left:48%;bottom:11%;font-size:58px;color:#68aa78;animation-delay:-2.3s}
+.animated-doodles{position:absolute;inset:-2.5%;z-index:0;pointer-events:none;background-image:linear-gradient(90deg,rgba(249,243,228,.91) 0%,rgba(249,243,228,.3) 29%,rgba(249,243,228,.28) 69%,rgba(249,243,228,.84) 100%),url("/doodle-background.png");background-size:cover;background-position:center bottom;opacity:.84;transform:scale(1.02);transform-origin:center}
 .landing-nav{z-index:3}
 .hero{z-index:2;padding-bottom:145px}
 .hero-copy{padding:28px;border-radius:24px;background:linear-gradient(90deg,rgba(249,243,228,.94),rgba(249,243,228,.7) 72%,transparent);margin-left:-28px}
 .secure-pill{background:#fffdf6e3;backdrop-filter:blur(5px)}
 .login-card{background:rgba(255,253,248,.97);backdrop-filter:blur(8px)}
-@keyframes doodle-drift{0%{transform:scale(1.02) translate3d(-.35%,0,0)}50%{transform:scale(1.035) translate3d(.4%,-.7%,0)}100%{transform:scale(1.025) translate3d(.8%,.3%,0)}}
-@keyframes gentle-float{0%,100%{translate:0 0;rotate:-4deg}50%{translate:0 -14px;rotate:5deg}}
-@media(max-width:800px){.animated-doodles{background-size:auto 100%;background-position:58% bottom;opacity:.58}.float-doodle{display:none}.hero{padding-bottom:120px}.hero-copy{margin-left:0;padding:15px;background:rgba(249,243,228,.86)}}
-@media(prefers-reduced-motion:reduce){.animated-doodles,.float-doodle{animation:none}}
+@media(max-width:800px){.animated-doodles{background-size:auto 100%;background-position:58% bottom;opacity:.58}.hero{padding-bottom:120px}.hero-copy{margin-left:0;padding:15px;background:rgba(249,243,228,.86)}}

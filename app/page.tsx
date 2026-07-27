@@ -75,10 +75,6 @@ export default function Home() {
       <main className="landing">
         <div className="paper-noise" />
         <div className="animated-doodles" aria-hidden="true" />
-        <span className="float-doodle star-one" aria-hidden="true">☆</span>
-        <span className="float-doodle heart-one" aria-hidden="true">♡</span>
-        <span className="float-doodle sparkle-one" aria-hidden="true">✦</span>
-        <span className="float-doodle swirl-one" aria-hidden="true">⌁</span>
         <header className="landing-nav">
           <a className="brand" href="https://brightlearnersacademy.net/" aria-label="Bright Learners Academy home">
             <span className="brand-mark">B</span>
@@ -91,11 +87,6 @@ export default function Home() {
             <p className="eyebrow">Learn • practise • remember</p>
             <h1>Everything your team needs to feel ready.</h1>
             <p className="hero-text">Complete province-specific onboarding, keep inspection records organized, and make every important answer easy to find.</p>
-            <div className="trust-row">
-              <span>✓ Alberta + Saskatchewan</span>
-              <span>✓ Timestamped records</span>
-              <span>✓ 100% mastery</span>
-            </div>
           </div>
           <form className="login-card" onSubmit={emailLogin}>
             <div className="card-pin" />
