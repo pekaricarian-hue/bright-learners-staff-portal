@@ -165,7 +165,7 @@ function EmployeeView() {
           const available = index <= completedCount;
           return <article className={`professional-module ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
             <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); setQuizMessage(""); setAnswer(""); }}>
-              <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span>{module.icon}</span><small>{index === 1 ? "Health & safety" : index === 2 ? "Cleaning routine" : "Course visual"}</small></div>
+              <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span className="doodle-mark">{String(index + 1).padStart(2, "0")}</span><small>{module.eyebrow}</small></div>
               <div className="module-card-top"><span className={`module-number ${module.colour}`}>{complete ? "✓" : index + 1}</span><span className="module-time">{module.time}</span></div>
               <div className="module-card-main"><small>Module {index + 1}</small><h3>{module.title}</h3></div>
               <div className="module-hover-description"><p>{module.eyebrow}</p><span>{complete ? "Completed • Review anytime" : available ? "Ready to continue" : "Complete the previous module to unlock"}</span></div>
@@ -182,7 +182,7 @@ function EmployeeView() {
     {selectedModule !== null && !lessonOpen && <div className="module-preview-backdrop" role="dialog" aria-modal="true" aria-labelledby="module-preview-title" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectedModule(null); }}>
       <section className="module-preview-card">
         <button className="lesson-close" onClick={() => setSelectedModule(null)} aria-label="Close module">×</button>
-        <div className={`preview-icon ${modules[selectedModule].colour}`}>{selectedModule < completedCount ? "✓" : modules[selectedModule].icon}</div>
+        <div className={`preview-icon ${modules[selectedModule].colour}`}>{selectedModule < completedCount ? "✓" : String(selectedModule + 1).padStart(2, "0")}</div>
         <p className="eyebrow">Module {selectedModule + 1} • {modules[selectedModule].time}</p>
         <h2 id="module-preview-title">{modules[selectedModule].title}</h2>
         <p className="preview-description">{modules[selectedModule].eyebrow}. Work through the lesson, review its official references, then complete the knowledge check with 100%.</p>
@@ -197,49 +197,76 @@ function EmployeeView() {
         <button className="lesson-close" onClick={() => { setLessonOpen(false); setSelectedModule(null); }} aria-label="Close lesson">×</button>
         <p className="eyebrow">Module {selectedModule + 1} • Alberta orientation</p>
         <h2 id="lesson-title">{modules[selectedModule].title}</h2>
-        {selectedModule === 1 ? <HealthLesson answer={answer} setAnswer={setAnswer} checkAnswer={checkAnswer} message={quizMessage} /> :
+        {selectedModule === 0 ? <WelcomeLesson /> : selectedModule === 1 ? <HealthLesson answer={answer} setAnswer={setAnswer} checkAnswer={checkAnswer} message={quizMessage} /> :
           <div className="lesson-placeholder"><span>{modules[selectedModule].icon}</span><h3>This lesson is on the board.</h3><p>Its complete cited content and knowledge check are being assembled from Bright Learners orientation material and the applicable Alberta requirements.</p></div>}
       </section>
     </div>}
   </div>;
 }
 
+type OrientationSlide = { kicker: string; title: string; body: string; points?: string[]; media?: string; ref: string };
+
+function WelcomeLesson() {
+  const [slide, setSlide] = useState(0);
+  const slides: OrientationSlide[] = [
+    { kicker: "Welcome", title: "You are now part of Bright Learners", body: "Bright Learners began in Alberta in 2015 and has grown into a multi-location childcare organization. Every location shares the same commitment: children should feel safe, known and excited to learn.", media: "Founders’ welcome video", ref: "Bright Learners Orientation, May 2026 — slides 1–3" },
+    { kicker: "Our purpose", title: "Safe, nurturing and built around each child", body: "Our mission is to support children’s physical, social, emotional and cognitive development. We recognize that every child has different strengths, interests and needs.", points: ["Create individualized learning experiences", "Build independence and positive self-esteem", "Respect culture, diversity and family partnerships"], ref: "Bright Learners Orientation, May 2026 — slide 4" },
+    { kicker: "Your team", title: "Know who leads each academy", body: "Directors guide daily operations, support educators and help resolve questions about safety, programming, families and workplace expectations.", points: ["Sundance — Margaret Ferriss", "Midnapore — Karla Buick", "Sylvan Lake — Sherry Murphy", "Millwoods — Evelyn Mahmoudi", "Willowgrove — Merilyn Guzman"], media: "Leadership team photos", ref: "Bright Learners Orientation, May 2026 — slide 5" },
+    { kicker: "Your role", title: "Create a safe place where children can grow", body: "Educators supervise children, prepare thoughtful learning experiences, observe development and maintain welcoming spaces.", points: ["Maintain active supervision", "Plan age-appropriate experiences", "Observe and document learning", "Follow health, safety and licensing requirements"], ref: "Bright Learners Orientation, May 2026 — slides 7–10" },
+    { kicker: "Families", title: "Build trust through everyday communication", body: "Greet families warmly, use their names, listen carefully and share useful daily updates. Protect confidentiality and raise concerns respectfully.", points: ["Share successes as well as challenges", "Confirm important care instructions", "Use face-to-face updates and Lillio appropriately", "Ask your director when you are unsure"], media: "Example family greeting video", ref: "Bright Learners Orientation, May 2026 — slides 11–12 and 36–39" },
+    { kicker: "Non-negotiables", title: "Safety, care and communication come first", body: "These priorities guide every decision. Harassment, bullying, mental abuse and sexual misconduct are not accepted at Bright Learners.", points: ["Protect every child’s safety", "Communicate concerns immediately", "Treat children, families and colleagues with care and respect"], ref: "Bright Learners Orientation, May 2026 — slides 13–14" },
+    { kicker: "Learning approach", title: "Follow children’s curiosity", body: "Bright Learners combines FLIGHT, emergent curriculum and Reggio Emilia ideas. Educators observe children’s interests and use them to plan meaningful play.", points: ["The environment acts as a third teacher", "Play supports communication, creativity and problem-solving", "Planning is shared and reviewed every week"], media: "Classroom and provocation photo gallery", ref: "Bright Learners Orientation, May 2026 — slides 16–33" },
+    { kicker: "Your first day", title: "Help every family feel welcome", body: "A family’s first experience shapes their trust in the centre. Prepare the room, greet them by name, listen closely to care instructions and support separation calmly.", points: ["Get down to the child’s level", "Ask about food, allergies and belongings", "Repeat instructions back to confirm them", "Give a positive update at pickup"], media: "First-day welcome scenario video", ref: "Bright Learners Orientation, May 2026 — slides 56–58" },
+  ];
+  return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} />;
+}
+
+function LessonWorkspace({ slides, slide, setSlide, quiz }: { slides: OrientationSlide[]; slide: number; setSlide: (value: number) => void; quiz?: React.ReactNode }) {
+  const atQuiz = Boolean(quiz) && slide === slides.length;
+  const current = slides[Math.min(slide, slides.length - 1)];
+  const total = slides.length + (quiz ? 1 : 0);
+  return <div className="lesson-workspace">
+    <aside className="lesson-outline">
+      <p className="eyebrow">Module outline</p>
+      {slides.map((item, index) => <button key={item.title} className={slide === index ? "active" : ""} onClick={() => setSlide(index)}><span>{String(index + 1).padStart(2, "0")}</span>{item.title}</button>)}
+      {quiz && <button className={atQuiz ? "active" : ""} onClick={() => setSlide(slides.length)}><span>{String(total).padStart(2, "0")}</span>Knowledge check</button>}
+    </aside>
+    <main className="lesson-stage">
+      <div className="slide-progress"><span>Lesson progress</span><div><i style={{ width: `${((slide + 1) / total) * 100}%` }} /></div><b>{slide + 1} / {total}</b></div>
+      {!atQuiz ? <article className={`lesson-slide ${current.media ? "" : "text-only"}`}>
+        {current.media && <div className={`lesson-visual visual-${slide % 4}`}><span className="doodle-mark">{String(slide + 1).padStart(2, "0")}</span><b>{current.media}</b><small>Media to be supplied by Bright Learners</small></div>}
+        <div className="slide-copy">
+          <p className="eyebrow">{current.kicker}</p><h3>{current.title}</h3><p>{current.body}</p>
+          {current.points && <ul>{current.points.map((point) => <li key={point}>{point}</li>)}</ul>}
+          <span className="orientation-reference">{current.ref}</span>
+        </div>
+      </article> : quiz}
+      <nav className="slide-controls" aria-label="Lesson slides">
+        <button className="outline-button" disabled={slide === 0} onClick={() => setSlide(Math.max(0, slide - 1))}>← Previous</button>
+        <span>{atQuiz ? "Knowledge check" : `Slide ${slide + 1}: ${current.title}`}</span>
+        {slide < total - 1 && <button className="primary-button" onClick={() => setSlide(Math.min(total - 1, slide + 1))}>{quiz && slide === slides.length - 1 ? "Take knowledge check" : "Next slide"} →</button>}
+      </nav>
+    </main>
+  </div>;
+}
+
 function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: string; setAnswer: (value: string) => void; checkAnswer: () => void; message: string }) {
   const [slide, setSlide] = useState(0);
-  const slides = [
-    { kicker: "Why this matters", title: "Healthy children, healthy centre", body: "You are often the first person to notice that a child is becoming unwell. Acting early helps protect the child, other children, families and your co-workers.", action: "Your job: notice changes, keep the child comfortable and follow the centre’s illness procedure.", visual: "Image or short welcome video", icon: "♡", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
-    { kicker: "Recognize", title: "Watch for signs of illness", body: "Look for fever, vomiting or diarrhea, cough, trouble breathing, sore throat, chills, unusual tiredness, or red and irritated eyes. A staff member with signs of a contagious illness must not stay at the facility.", action: "If a child seems different from normal, pause and check. Never ignore a symptom because the room is busy.", visual: "Symptom illustration or photo set", icon: "◎", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
-    { kicker: "Respond", title: "Separate, supervise and notify", body: "Move the sick child away from the group while keeping them supervised and comfortable. Contact their parent or guardian for immediate pickup. Follow AHS direction if an outbreak is suspected.", action: "A sick child is never left alone. Record what you observed and who was contacted.", visual: "Scenario video or response diagram", icon: "☎", ref: "AHS Health & Safety Guide, April 2025 — PDF pages 19–20" },
-    { kicker: "Prevent spread", title: "Clean what the child used", body: "Clean and disinfect bedding, toys and other items the child used during the 48 hours before symptoms and while separated. Do this as soon as possible after pickup.", action: "Pay special attention to mouthed toys and frequently touched surfaces. Follow the product label and centre procedure.", visual: "Cleaning demonstration video", icon: "✦", ref: "AHS Health & Safety Guide, April 2025 — PDF pages 20–21" },
+  const slides: OrientationSlide[] = [
+    { kicker: "Why this matters", title: "Healthy children, healthy centre", body: "You are often the first person to notice that a child is becoming unwell. Acting early helps protect the child, other children, families and your co-workers.", media: "Short introduction video", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
+    { kicker: "Recognize", title: "Watch for signs of illness", body: "Look for fever, vomiting or diarrhea, cough, trouble breathing, sore throat, chills, unusual tiredness, or red and irritated eyes. A staff member with signs of a contagious illness must not stay at the facility.", points: ["Notice changes from the child’s normal behaviour", "Pause and check when something seems wrong", "Tell the director and follow the illness procedure"], media: "Symptom illustration", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
+    { kicker: "Respond", title: "Separate, supervise and notify", body: "Move the sick child away from the group while keeping them supervised and comfortable. Contact their parent or guardian for immediate pickup. Follow AHS direction if an outbreak is suspected.", points: ["Never leave a sick child alone", "Record what you observed", "Record who was contacted and when"], ref: "AHS Health & Safety Guide, April 2025 — PDF pages 19–20" },
+    { kicker: "Prevent spread", title: "Clean what the child used", body: "Clean and disinfect bedding, toys and other items the child used during the 48 hours before symptoms and while separated. Do this as soon as possible after pickup.", points: ["Pay special attention to mouthed toys", "Clean frequently touched surfaces", "Follow the product label and centre procedure"], media: "Cleaning demonstration video", ref: "AHS Health & Safety Guide, April 2025 — PDF pages 20–21" },
   ];
-  const atQuiz = slide === slides.length;
-  const current = slides[slide];
-  return <div className="lesson-body slide-lesson">
-    <div className="slide-progress"><span>Lesson progress</span><div><i style={{ width: `${((slide + 1) / (slides.length + 1)) * 100}%` }} /></div><b>{slide + 1} / {slides.length + 1}</b></div>
-    {!atQuiz && <article className="lesson-slide">
-      <div className={`lesson-visual visual-${slide}`}>
-        <span>{current.icon}</span><b>{current.visual}</b><small>Reserved media area • image, diagram, poster or video</small>
-      </div>
-      <div className="slide-copy">
-        <p className="eyebrow">{current.kicker}</p><h3>{current.title}</h3><p>{current.body}</p>
-        <aside><b>In plain English</b><p>{current.action}</p></aside>
-        <a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">{current.ref}</a>
-      </div>
-    </article>}
-    {atQuiz && <fieldset className="knowledge-check"><legend>Knowledge check • 1 of 1</legend><p>A toy has been in a toddler’s mouth. When must it be cleaned and disinfected?</p>
+  const quiz = <fieldset className="knowledge-check"><legend>Knowledge check • 1 of 1</legend><p>A toy has been in a toddler’s mouth. When must it be cleaned and disinfected?</p>
       <label><input type="radio" name="toy-frequency" value="weekly" checked={answer === "weekly"} onChange={(e) => setAnswer(e.target.value)} /> At the end of the week</label>
       <label><input type="radio" name="toy-frequency" value="after-each-child" checked={answer === "after-each-child"} onChange={(e) => setAnswer(e.target.value)} /> After each child’s use and at least daily</label>
       <label><input type="radio" name="toy-frequency" value="when-dirty" checked={answer === "when-dirty"} onChange={(e) => setAnswer(e.target.value)} /> Only when it looks dirty</label>
       <button className="primary-button" type="button" onClick={checkAnswer} disabled={!answer}>Check my answer</button>
       {message && <p className={`quiz-feedback ${message.startsWith("Correct") ? "correct" : ""}`} role="status">{message}</p>}
       <small>Reference: AHS Health & Safety Guide, April 2025, PDF pages 21 and 37; Appendix G.</small>
-    </fieldset>}
-    <nav className="slide-controls" aria-label="Lesson slides">
-      <button className="outline-button" disabled={slide === 0} onClick={() => setSlide((value) => Math.max(0, value - 1))}>← Previous</button>
-      <span>{atQuiz ? "Knowledge check" : `Slide ${slide + 1}: ${current.title}`}</span>
-      {!atQuiz && <button className="primary-button" onClick={() => setSlide((value) => Math.min(slides.length, value + 1))}>{slide === slides.length - 1 ? "Take knowledge check" : "Next slide"} →</button>}
-    </nav>
-  </div>;
+    </fieldset>;
+  return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} quiz={quiz} />;
 }
 
 function DirectorView({ location, setLocation }: { location: string; setLocation: (v: string) => void }) {
