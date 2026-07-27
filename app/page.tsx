@@ -24,10 +24,6 @@ const modules = [
 
 const locations = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
 
-function DoodleCloud({ className = "" }: { className?: string }) {
-  return <span className={`doodle-cloud ${className}`} aria-hidden="true"><i /><i /><i /></span>;
-}
-
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,11 +74,11 @@ export default function Home() {
     return (
       <main className="landing">
         <div className="paper-noise" />
-        <DoodleCloud className="cloud-one" />
-        <DoodleCloud className="cloud-two" />
-        <span className="doodle-sun" aria-hidden="true">☀</span>
-        <span className="doodle-hill hill-one" aria-hidden="true" />
-        <span className="doodle-hill hill-two" aria-hidden="true" />
+        <div className="animated-doodles" aria-hidden="true" />
+        <span className="float-doodle star-one" aria-hidden="true">☆</span>
+        <span className="float-doodle heart-one" aria-hidden="true">♡</span>
+        <span className="float-doodle sparkle-one" aria-hidden="true">✦</span>
+        <span className="float-doodle swirl-one" aria-hidden="true">⌁</span>
         <header className="landing-nav">
           <a className="brand" href="https://brightlearnersacademy.net/" aria-label="Bright Learners Academy home">
             <span className="brand-mark">B</span>
