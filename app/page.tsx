@@ -165,6 +165,7 @@ function EmployeeView() {
           const available = index <= completedCount;
           return <article className={`professional-module ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
             <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); setQuizMessage(""); setAnswer(""); }}>
+              <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span>{module.icon}</span><small>{index === 1 ? "Health & safety" : index === 2 ? "Cleaning routine" : "Course visual"}</small></div>
               <div className="module-card-top"><span className={`module-number ${module.colour}`}>{complete ? "✓" : index + 1}</span><span className="module-time">{module.time}</span></div>
               <div className="module-card-main"><small>Module {index + 1}</small><h3>{module.title}</h3></div>
               <div className="module-hover-description"><p>{module.eyebrow}</p><span>{complete ? "Completed • Review anytime" : available ? "Ready to continue" : "Complete the previous module to unlock"}</span></div>
@@ -204,19 +205,40 @@ function EmployeeView() {
 }
 
 function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: string; setAnswer: (value: string) => void; checkAnswer: () => void; message: string }) {
-  return <div className="lesson-body">
-    <div className="lesson-summary"><b>What you’ll be able to do</b><p>Recognize signs of contagious illness, respond safely, and understand when enhanced cleaning is required.</p></div>
-    <div className="lesson-section"><span className="lesson-number">1</span><div><h3>Watch for signs of illness</h3><p>Staff monitor children for symptoms including fever, vomiting or diarrhea, cough, shortness of breath, sore throat, chills, fatigue and conjunctivitis. Staff with symptoms of a contagious illness must not remain at the facility.</p><a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">AHS Health & Safety Guide, April 2025 — PDF page 18</a></div></div>
-    <div className="lesson-section"><span className="lesson-number">2</span><div><h3>Separate and notify</h3><p>A sick child should be supervised away from others while their parent or guardian is contacted for immediate pickup. Suspected outbreaks must be reported to AHS and managed using AHS direction.</p><a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">AHS Health & Safety Guide, April 2025 — PDF pages 19–20</a></div></div>
-    <div className="lesson-section"><span className="lesson-number">3</span><div><h3>Clean what the child used</h3><p>Bedding, toys and other items used during the 48 hours before symptoms and while the child was isolated should be cleaned and disinfected as soon as the child is picked up.</p><a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">AHS Health & Safety Guide, April 2025 — PDF page 20</a></div></div>
-    <fieldset className="knowledge-check"><legend>Knowledge check • 1 of 1</legend><p>A toy has been in a toddler’s mouth. When must it be cleaned and disinfected?</p>
+  const [slide, setSlide] = useState(0);
+  const slides = [
+    { kicker: "Why this matters", title: "Healthy children, healthy centre", body: "You are often the first person to notice that a child is becoming unwell. Acting early helps protect the child, other children, families and your co-workers.", action: "Your job: notice changes, keep the child comfortable and follow the centre’s illness procedure.", visual: "Image or short welcome video", icon: "♡", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
+    { kicker: "Recognize", title: "Watch for signs of illness", body: "Look for fever, vomiting or diarrhea, cough, trouble breathing, sore throat, chills, unusual tiredness, or red and irritated eyes. A staff member with signs of a contagious illness must not stay at the facility.", action: "If a child seems different from normal, pause and check. Never ignore a symptom because the room is busy.", visual: "Symptom illustration or photo set", icon: "◎", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
+    { kicker: "Respond", title: "Separate, supervise and notify", body: "Move the sick child away from the group while keeping them supervised and comfortable. Contact their parent or guardian for immediate pickup. Follow AHS direction if an outbreak is suspected.", action: "A sick child is never left alone. Record what you observed and who was contacted.", visual: "Scenario video or response diagram", icon: "☎", ref: "AHS Health & Safety Guide, April 2025 — PDF pages 19–20" },
+    { kicker: "Prevent spread", title: "Clean what the child used", body: "Clean and disinfect bedding, toys and other items the child used during the 48 hours before symptoms and while separated. Do this as soon as possible after pickup.", action: "Pay special attention to mouthed toys and frequently touched surfaces. Follow the product label and centre procedure.", visual: "Cleaning demonstration video", icon: "✦", ref: "AHS Health & Safety Guide, April 2025 — PDF pages 20–21" },
+  ];
+  const atQuiz = slide === slides.length;
+  const current = slides[slide];
+  return <div className="lesson-body slide-lesson">
+    <div className="slide-progress"><span>Lesson progress</span><div><i style={{ width: `${((slide + 1) / (slides.length + 1)) * 100}%` }} /></div><b>{slide + 1} / {slides.length + 1}</b></div>
+    {!atQuiz && <article className="lesson-slide">
+      <div className={`lesson-visual visual-${slide}`}>
+        <span>{current.icon}</span><b>{current.visual}</b><small>Reserved media area • image, diagram, poster or video</small>
+      </div>
+      <div className="slide-copy">
+        <p className="eyebrow">{current.kicker}</p><h3>{current.title}</h3><p>{current.body}</p>
+        <aside><b>In plain English</b><p>{current.action}</p></aside>
+        <a href="https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" target="_blank" rel="noreferrer">{current.ref}</a>
+      </div>
+    </article>}
+    {atQuiz && <fieldset className="knowledge-check"><legend>Knowledge check • 1 of 1</legend><p>A toy has been in a toddler’s mouth. When must it be cleaned and disinfected?</p>
       <label><input type="radio" name="toy-frequency" value="weekly" checked={answer === "weekly"} onChange={(e) => setAnswer(e.target.value)} /> At the end of the week</label>
       <label><input type="radio" name="toy-frequency" value="after-each-child" checked={answer === "after-each-child"} onChange={(e) => setAnswer(e.target.value)} /> After each child’s use and at least daily</label>
       <label><input type="radio" name="toy-frequency" value="when-dirty" checked={answer === "when-dirty"} onChange={(e) => setAnswer(e.target.value)} /> Only when it looks dirty</label>
       <button className="primary-button" type="button" onClick={checkAnswer} disabled={!answer}>Check my answer</button>
       {message && <p className={`quiz-feedback ${message.startsWith("Correct") ? "correct" : ""}`} role="status">{message}</p>}
       <small>Reference: AHS Health & Safety Guide, April 2025, PDF pages 21 and 37; Appendix G.</small>
-    </fieldset>
+    </fieldset>}
+    <nav className="slide-controls" aria-label="Lesson slides">
+      <button className="outline-button" disabled={slide === 0} onClick={() => setSlide((value) => Math.max(0, value - 1))}>← Previous</button>
+      <span>{atQuiz ? "Knowledge check" : `Slide ${slide + 1}: ${current.title}`}</span>
+      {!atQuiz && <button className="primary-button" onClick={() => setSlide((value) => Math.min(slides.length, value + 1))}>{slide === slides.length - 1 ? "Take knowledge check" : "Next slide"} →</button>}
+    </nav>
   </div>;
 }
 
