@@ -101,6 +101,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /certificates/{certificateId} {
+      allow read: if verified() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if verified() &&
+        request.resource.data.userId == request.auth.uid &&
+        (isOwner() ||
+          get(/databases/$(database)/documents/progress/$(request.auth.uid + "_" + request.resource.data.courseId)).data.completedModules.size() == 8);
+      allow update: if verified() &&
+        request.resource.data.userId == resource.data.userId &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
     match /auditEvents/{eventId} {
       allow read: if isAdmin();
       allow create: if verified() &&

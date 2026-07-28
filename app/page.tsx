@@ -22,8 +22,10 @@ import { auth, db } from "./firebase";
 import InspectionWorkflow from "./inspection-workflow";
 import ExitConfirmation from "./exit-confirmation";
 import InspectionReports from "./inspection-reports";
+import CertificateStatus from "./certificate";
+import CertificateLibrary from "./certificate-library";
 
-type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-inspections";
+type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-inspections" | "admin-certificates";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 type Province = "AB" | "SK";
 type StaffRole = "employee" | "director" | "admin" | "owner";
@@ -336,7 +338,7 @@ export default function Home() {
           <nav aria-label="Portal">
             {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
             {activePortal === "inspection" && <><button data-tour="inspection-dashboard-tab" className={view === "director" ? "active" : ""} onClick={() => setView("director")}>Inspection dashboard</button><button data-tour="inspection-reports-tab" className={view === "inspection-reports" ? "active" : ""} onClick={() => setView("inspection-reports")}>Reports & drafts</button></>}
-            {activePortal === "admin" && <><button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Organization overview</button><button data-tour="admin-inspection-records" className={view === "admin-inspections" ? "active" : ""} onClick={() => setView("admin-inspections")}>Inspection records</button></>}
+            {activePortal === "admin" && <><button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Organization overview</button><button data-tour="admin-inspection-records" className={view === "admin-inspections" ? "active" : ""} onClick={() => setView("admin-inspections")}>Inspection records</button><button data-tour="admin-certificates" className={view === "admin-certificates" ? "active" : ""} onClick={() => setView("admin-certificates")}>Certificates</button></>}
           </nav>
           <details className="account-menu">
             <summary className="user-chip" data-tour="profile-menu" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></summary>
@@ -352,12 +354,13 @@ export default function Home() {
         </header>
 
         {activePortal === "learning" && view === "dashboard" && <DashboardView userId={user.uid} name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} />}
-        {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} location={assignedLocation} province={assignedProvince} />}
+        {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} email={profile.email} displayName={profile.displayName} location={assignedLocation} province={assignedProvince} />}
         {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
         {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
         {activePortal === "inspection" && view === "inspection-reports" && <InspectionReports userId={user.uid} directorName={profile.displayName} />}
         {activePortal === "admin" && view === "admin" && <AdminView />}
         {activePortal === "admin" && view === "admin-inspections" && <InspectionReports userId={user.uid} directorName={profile.displayName} adminMode />}
+        {activePortal === "admin" && view === "admin-certificates" && <CertificateLibrary />}
       </section>
       {editProfileOpen && <EditProfile profile={profile} save={updateProfile} close={() => setEditProfileOpen(false)} />}
       {passwordOpen && <PasswordResetDialog email={profile.email} close={() => setPasswordOpen(false)} />}
@@ -479,10 +482,6 @@ function PasswordResetDialog({ email, close }: { email: string; close: () => voi
   return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor" role="dialog" aria-modal="true" aria-labelledby="password-title"><button className="profile-editor-close" onClick={close} aria-label="Close password settings">×</button><p className="eyebrow">Account security</p><h2 id="password-title">Set or change your password</h2><p>A Google-created account can add password sign-in here. Use at least eight characters.</p><div className="profile-name-fields password-fields"><label>New password<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setStatus(""); }} placeholder="At least 8 characters" /></label><label>Confirm password<input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setStatus(""); }} placeholder="Enter it again" /></label></div><button className="brand-button" disabled={sending || !newPassword || !confirmPassword} onClick={savePassword}>{sending ? "Saving…" : "Save password"}</button><button className="text-button password-email-link" disabled={sending} onClick={sendLink}>Or send a secure password email to {email}</button>{status && <p className="form-message" role="status">{status}</p>}<small>You can continue using Google sign-in after adding a password.</small></section></div>;
 }
 
-function CertificateStatus({ profile, close }: { profile: StaffProfile; close: () => void }) {
-  return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor certificate-status" role="dialog" aria-modal="true" aria-labelledby="certificate-title"><button className="profile-editor-close" onClick={close} aria-label="Close certificate status">×</button><span className="certificate-seal">☆</span><h2 id="certificate-title">Bright Learners Academy</h2><p>The final completion certificate will be generated for <b>{profile.displayName}</b> after every assigned module and assessment is completed at 100%.</p><div className="certificate-progress"><span>Requirement</span><b>Complete all 8 assigned modules</b></div><button className="brand-button" disabled>Certificate not yet available</button><small>Once complete, this page will provide the dated PDF and module checklist.</small></section></div>;
-}
-
 function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | "inspection" | "admin"; canAdmin: boolean; finish: () => void; close: () => void }) {
   const [step, setStep] = useState(0);
   const tours = {
@@ -503,6 +502,7 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
       ["Administration console", "This workspace is restricted to the administrator and technical owner.", "[data-tour='admin-overview']"],
       ["Staff and access", "Manage employee and director access, academy assignment and provincial course assignment.", "[data-tour='admin-overview']"],
       ["Inspection records", "Review drafts and completed facility inspections across every Bright Learners location.", "[data-tour='admin-inspection-records']"],
+      ["Certificates", "View and download employee certificates grouped by academy, including annual renewal and expiry status.", "[data-tour='admin-certificates']"],
       ["Your profile", "Use this menu to switch portals, view certificate status, restart the walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
   };
@@ -608,7 +608,7 @@ function ResourcesView({ location, province }: { location: string; province: Pro
   return <div className="content resources-content"><div className="page-intro"><p className="eyebrow">{location} reference library</p><h1>Resources</h1><p>Only your assigned provincial policies and Bright Learners guides are shown here. Resources open in a new tab so your course progress stays in place.</p></div><div className="resource-grid">{assignedResources.map((resource, index) => <article key={resource.title}><span className={`resource-icon resource-${index + 1}`}>{index + 1}</span><small>{resource.province} resource</small><h2>{resource.title}</h2><p>{resource.description}</p><a href={resource.href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${resource.title}`}>Open resource ↗</a></article>)}</div></div>;
 }
 
-function EmployeeView({ userId, location, province }: { userId: string; location: string; province: Province }) {
+function EmployeeView({ userId, email, displayName, location, province }: { userId: string; email: string; displayName: string; location: string; province: Province }) {
   const [completedModules, setCompletedModules] = useState<number[]>([]);
   const [moduleSlides, setModuleSlides] = useState<Record<string, number>>({});
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
@@ -642,6 +642,9 @@ function EmployeeView({ userId, location, province }: { userId: string; location
 
   async function recordAttempt(moduleIndex: number, score: number, answers: Record<string, number>) {
     const passed = score === 100;
+    const nextCompleted = passed
+      ? Array.from(new Set([...completedModules, moduleIndex])).sort((a, b) => a - b)
+      : completedModules;
     const update: Record<string, unknown> = {
       userId,
       courseId: `${province.toLowerCase()}-orientation`,
@@ -657,7 +660,36 @@ function EmployeeView({ userId, location, province }: { userId: string; location
     };
     if (passed) update.completedModules = arrayUnion(moduleIndex);
     await setDoc(doc(db, "progress", progressId), update, { merge: true });
-    if (passed) setCompletedModules((current) => current.includes(moduleIndex) ? current : [...current, moduleIndex].sort((a, b) => a - b));
+    if (passed) setCompletedModules(nextCompleted);
+    if (passed && nextCompleted.length === modules.length) {
+      const issuedAt = new Date();
+      const expiresAt = new Date(issuedAt);
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      const certificateId = `${progressId}_${issuedAt.getFullYear()}`;
+      await setDoc(doc(db, "certificates", certificateId), {
+        id: certificateId,
+        userId,
+        employeeName: displayName,
+        email,
+        location,
+        province,
+        courseId: `${province.toLowerCase()}-orientation`,
+        courseTitle: "Employee Orientation & Child Care Safety",
+        moduleChecklist: modules.map((module) => ({ title: module.title, passed: true })),
+        issuedAt,
+        expiresAt,
+        renewalStatus: "active",
+        notificationStatus: "pending",
+        notificationRecipient: "admin@brightlearnersacademy.net",
+        createdAt: serverTimestamp(),
+      }, { merge: true });
+      await setDoc(doc(db, "progress", progressId), {
+        courseCompletedAt: issuedAt,
+        certificateId,
+        renewalDueAt: expiresAt,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
   }
 
   return <div className="content learning-content">
@@ -688,6 +720,11 @@ function EmployeeView({ userId, location, province }: { userId: string; location
     </section>
 
     <aside className="source-note"><b>Every lesson is traceable.</b><p>Official requirements link to their authority, document, page and section. Bright Learners policies are clearly labelled, and current official policy always takes priority.</p></aside>
+    <section className={`course-completion-checklist ${completedModules.length === modules.length ? "complete" : ""}`}>
+      <div><p className="eyebrow">Final course checklist</p><h2>{completedModules.length === modules.length ? "Orientation complete" : "Complete every requirement"}</h2><p>Your certificate is issued only after all eight module assessments are passed at 100%.</p></div>
+      <div className="completion-module-list">{modules.map((module, index) => <span key={module.title} className={completedModules.includes(index) ? "complete" : ""}><i>{completedModules.includes(index) ? "✓" : index + 1}</i><b>{module.title}</b><small>{completedModules.includes(index) ? "Passed at 100%" : "Not complete"}</small></span>)}</div>
+      <footer><b>{completedModules.length} of {modules.length} requirements complete</b><span>{completedModules.length === modules.length ? "Certificate available from your profile." : "Continue with any unfinished module above."}</span></footer>
+    </section>
 
     {selectedModule !== null && !lessonOpen && <div className="module-preview-backdrop" role="dialog" aria-modal="true" aria-labelledby="module-preview-title" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectedModule(null); }}>
       <section className="module-preview-card">
