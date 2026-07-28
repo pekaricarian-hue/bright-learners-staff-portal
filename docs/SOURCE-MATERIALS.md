@@ -15,6 +15,7 @@ This file keeps the project recoverable if the original Codex conversation is un
 - `C:\Users\arian\Downloads\Orientation PPT - May 2026.pptx` - 60-slide company orientation used for both provinces.
 - `C:\Users\arian\Downloads\Revised -Monthly Audit.zip` - six photographed monthly-audit pages for director inspections.
 - `C:\Users\arian\Downloads\WILLOW PARENT HANDBOOK (1).pdf` - current Willowgrove policies.
+- `C:\Users\arian\Downloads\UPDATED FINAL STAFF HANDBOOK 3.0.pdf` - final Saskatchewan staff handbook, dated May 2026, 48 pages. A recovery copy is stored at `C:\Users\arian\Documents\Codex\2026-07-26\whe\sources\saskatchewan\Bright-Learners-Academy-Staff-Handbook-May-2026.pdf`.
 - `C:\Users\arian\Downloads\Revised Menu.pdf` - Willowgrove four-week onsite food-service menu.
 - `C:\Users\arian\Downloads\WILLOWGROVE REPORTS-20260728T003310Z-1-001.zip` - Willowgrove fire-safety and Saskatchewan Health Authority reports.
 
