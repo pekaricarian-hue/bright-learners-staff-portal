@@ -107,9 +107,9 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 .guided-tour.anchored {
   position: fixed;
   z-index: 120;
-  width: min(430px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
-  padding: 28px;
+  padding: 22px;
   overflow-y: auto;
   pointer-events: auto;
   transition: top .22s ease, left .22s ease;
@@ -141,11 +141,23 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 }
 
 .guided-tour.anchored h2 {
-  font-size: 27px;
+  margin-top: 4px;
+  font-size: 23px;
 }
 
 .guided-tour.anchored > p:not(.eyebrow) {
   min-height: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.guided-tour.anchored .tour-dots {
+  margin: 16px 0;
+}
+
+.guided-tour.anchored footer button {
+  min-width: 88px;
+  padding: 10px 14px;
 }
 
 .tour-highlight {
