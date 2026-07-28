@@ -85,6 +85,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [certificateOpen, setCertificateOpen] = useState(false);
   const [view, setView] = useState<View>("dashboard");
   const [portalMode, setPortalMode] = useState<PortalMode>("chooser");
   const [location, setLocation] = useState("Sundance");
@@ -253,8 +254,15 @@ export default function Home() {
             {activePortal === "inspection" && <><span className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
             {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
           </nav>
-          <div className="user-chip"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></div>
-          <div className="account-actions">{canInspect && <button onClick={() => setPortalMode("chooser")}>Switch portal</button>}<button onClick={() => setEditProfileOpen(true)}>Edit profile</button><button onClick={() => signOut(auth)}>Sign out</button></div>
+          <details className="account-menu">
+            <summary className="user-chip" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div><i>⌄</i></summary>
+            <div className="account-menu-panel">
+              {canInspect && <button onClick={() => setPortalMode("chooser")}><span>⇄</span><div><b>Switch portal</b><small>Learning, inspections or admin</small></div></button>}
+              <button onClick={() => setEditProfileOpen(true)}><span>✎</span><div><b>Edit profile</b><small>Name and certificate details</small></div></button>
+              <button onClick={() => setCertificateOpen(true)}><span>☆</span><div><b>View certificate</b><small>Orientation completion record</small></div></button>
+              <button className="account-signout" onClick={() => signOut(auth)}><span>→</span><div><b>Sign out</b><small>End this session</small></div></button>
+            </div>
+          </details>
         </header>
 
         {activePortal === "learning" && view === "dashboard" && <DashboardView name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} />}
@@ -264,6 +272,7 @@ export default function Home() {
         {activePortal === "admin" && <AdminView />}
       </section>
       {editProfileOpen && <EditProfile profile={profile} save={updateProfileName} close={() => setEditProfileOpen(false)} />}
+      {certificateOpen && <CertificateStatus profile={profile} close={() => setCertificateOpen(false)} />}
     </main>
   );
 }
@@ -283,6 +292,10 @@ function EditProfile({ profile, save, close }: { profile: StaffProfile; save: (f
   const [lastName, setLastName] = useState(profile.lastName);
   const [saving, setSaving] = useState(false);
   return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title"><button className="profile-editor-close" onClick={close} aria-label="Close profile editor">×</button><p className="eyebrow">Certificate details</p><h2 id="edit-profile-title">Edit your staff profile</h2><p>Use your legal name exactly as it should appear on your final orientation certificate.</p><div className="profile-name-fields"><label>Legal first name<input required autoComplete="given-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Enter your legal first name" /></label><label>Legal last name<input required autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Enter your legal last name" /></label></div><label>Assigned academy<input value={`${profile.location} — ${profile.province === "SK" ? "Saskatchewan" : "Alberta"}`} disabled /></label><button className="brand-button" disabled={!firstName.trim() || !lastName.trim() || saving} onClick={async () => { setSaving(true); try { await save(firstName, lastName); } finally { setSaving(false); } }}>{saving ? "Saving…" : "Save profile"}</button><small>Contact an administrator if your academy assignment needs to change.</small></section></div>;
+}
+
+function CertificateStatus({ profile, close }: { profile: StaffProfile; close: () => void }) {
+  return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor certificate-status" role="dialog" aria-modal="true" aria-labelledby="certificate-title"><button className="profile-editor-close" onClick={close} aria-label="Close certificate status">×</button><span className="certificate-seal">☆</span><p className="eyebrow">Bright Learners Academy</p><h2 id="certificate-title">Orientation certificate</h2><p>Your internal completion certificate will be generated for <b>{profile.displayName}</b> after every assigned {profile.province === "SK" ? "Saskatchewan" : "Alberta"} module and assessment is completed at 100%.</p><div className="certificate-progress"><span>Current progress</span><b>1 of {profile.province === "SK" ? 8 : 6} modules complete</b></div><button className="brand-button" disabled>Certificate not yet available</button><small>Once complete, this page will provide the dated PDF and module checklist.</small></section></div>;
 }
 
 function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; canAdmin: boolean; choose: (portal: PortalMode) => void; signOutUser: () => void }) {
