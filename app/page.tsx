@@ -15,6 +15,7 @@ import {
 import { auth } from "./firebase";
 
 type View = "dashboard" | "employee" | "resources" | "director" | "admin";
+type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 
 const modules = [
   { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "⌂" },
@@ -50,6 +51,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [view, setView] = useState<View>("dashboard");
+  const [portalMode, setPortalMode] = useState<PortalMode>("chooser");
   const [location, setLocation] = useState("Sundance");
   const signedInEmail = user?.email?.toLowerCase() ?? "";
   const canAdmin = executiveEmails.has(signedInEmail);
@@ -57,6 +59,8 @@ export default function Home() {
 
   useEffect(() => onAuthStateChanged(auth, (next) => {
     setUser(next);
+    setPortalMode("chooser");
+    setView("dashboard");
     const nextEmail = next?.email?.toLowerCase() ?? "";
     if (directorLocations[nextEmail]) setLocation(directorLocations[nextEmail]);
     setLoading(false);
@@ -127,33 +131,43 @@ export default function Home() {
     );
   }
 
+  const activePortal = portalMode === "chooser" && !canInspect ? "learning" : portalMode;
+  if (activePortal === "chooser") {
+    return <PortalChooser name={user.displayName || "Team member"} canAdmin={canAdmin} choose={(portal) => {
+      setPortalMode(portal);
+      setView(portal === "inspection" ? "director" : portal === "admin" ? "admin" : "dashboard");
+    }} signOutUser={() => signOut(auth)} />;
+  }
+
   return (
     <main className="portal">
       <section className="workspace">
         <header className="portal-topbar">
-          <Link className="portal-logo-link" href="/" onClick={() => setView("dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
+          <Link className="portal-logo-link" href="/" onClick={() => setView(activePortal === "inspection" ? "director" : activePortal === "admin" ? "admin" : "dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
           <nav aria-label="Portal">
-            <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button>
-            <button className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button>
-            <button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button>
-            {canInspect && <button className={view === "director" ? "active" : ""} onClick={() => setView("director")}>Inspections</button>}
-            {canAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Admin</button>}
+            {activePortal === "learning" && <><button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
+            {activePortal === "inspection" && <><span className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
+            {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
           </nav>
           <div className="user-chip"><span>{(user.displayName || user.email || "Staff")[0].toUpperCase()}</span><div><b>{user.displayName || "Team member"}</b><small>{user.email}</small></div></div>
-          <button className="topbar-signout" onClick={() => signOut(auth)}>Sign out</button>
+          <div className="account-actions">{canInspect && <button onClick={() => setPortalMode("chooser")}>Switch portal</button>}<button onClick={() => signOut(auth)}>Sign out</button></div>
         </header>
 
-        {view === "dashboard" && <DashboardView name={user.displayName || "Team member"} canInspect={canInspect} setView={setView} />}
-        {view === "employee" && <EmployeeView />}
-        {view === "resources" && <ResourcesView />}
-        {view === "director" && <DirectorView location={location} setLocation={setLocation} />}
-        {view === "admin" && <AdminView />}
+        {activePortal === "learning" && view === "dashboard" && <DashboardView name={user.displayName || "Team member"} setView={setView} />}
+        {activePortal === "learning" && view === "employee" && <EmployeeView />}
+        {activePortal === "learning" && view === "resources" && <ResourcesView />}
+        {activePortal === "inspection" && <DirectorView location={location} setLocation={setLocation} />}
+        {activePortal === "admin" && <AdminView />}
       </section>
     </main>
   );
 }
 
-function DashboardView({ name, canInspect, setView }: { name: string; canInspect: boolean; setView: (view: View) => void }) {
+function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; canAdmin: boolean; choose: (portal: PortalMode) => void; signOutUser: () => void }) {
+  return <main className="portal-chooser"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><p className="eyebrow">Private staff access</p><h1>Where would you like to go, {name.split(" ")[0]}?</h1><p>Learning and facility inspections are separate workspaces with different tools and records.</p><div className="portal-choice-grid"><button onClick={() => choose("learning")}><span className="choice-icon learning-choice">⌂</span><small>For all staff</small><h2>Employee Learning</h2><p>Complete onboarding modules, take assessments, review resources and download certificates.</p><b>Open learning portal →</b></button><button onClick={() => choose("inspection")}><span className="choice-icon inspection-choice">✓</span><small>For directors</small><h2>Director Inspections</h2><p>Run facility checklists, document follow-ups, attach evidence and export inspection records.</p><b>Open inspection portal →</b></button>{canAdmin && <button onClick={() => choose("admin")}><span className="choice-icon admin-choice">A</span><small>For executives</small><h2>Admin Console</h2><p>Manage staff access, courses, checklists, deadlines and organization-wide compliance.</p><b>Open admin console →</b></button>}</div></section></main>;
+}
+
+function DashboardView({ name, setView }: { name: string; setView: (view: View) => void }) {
   return <div className="content dashboard-content">
     <section className="dashboard-greeting"><div><p className="eyebrow">Staff learning portal</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your onboarding, find a policy, or complete today’s facility work.</p></div><div className="dashboard-sun" aria-hidden="true">☼</div></section>
     <div className="dashboard-stat-grid">
@@ -164,7 +178,7 @@ function DashboardView({ name, canInspect, setView }: { name: string; canInspect
     </div>
     <div className="dashboard-columns">
       <section className="continue-panel"><div><p className="eyebrow">Continue learning</p><h2>Welcome to Bright Learners</h2><p>Meet the organization, understand your role, and learn the standards that guide every academy.</p><div className="dashboard-progress"><i /></div><small>1 of 8 lesson slides viewed</small></div><button className="brand-button" onClick={() => setView("employee")}>Continue module →</button></section>
-      <section className="dashboard-links"><p className="eyebrow">Quick access</p><button onClick={() => setView("resources")}><span>?</span><div><b>Policies & resources</b><small>Official documents and quick guides</small></div>→</button>{canInspect && <button onClick={() => setView("director")}><span>✓</span><div><b>Facility inspections</b><small>Start or continue a checklist</small></div>→</button>}<button onClick={() => setView("employee")}><span>☆</span><div><b>My certificates</b><small>Completed training records</small></div>→</button></section>
+      <section className="dashboard-links"><p className="eyebrow">Quick access</p><button onClick={() => setView("resources")}><span>?</span><div><b>Policies & resources</b><small>Official documents and quick guides</small></div>→</button><button onClick={() => setView("employee")}><span>✓</span><div><b>Required learning</b><small>Continue assigned modules</small></div>→</button><button onClick={() => setView("employee")}><span>☆</span><div><b>My certificates</b><small>Completed training records</small></div>→</button></section>
     </div>
   </div>;
 }
