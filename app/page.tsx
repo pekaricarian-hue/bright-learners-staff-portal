@@ -221,8 +221,11 @@ export default function Home() {
     if (password !== confirmPassword) return setMessage("The two passwords do not match.");
     try {
       const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      await sendEmailVerification(credential.user).catch(() => undefined);
-      setMessage("Account created. Next, confirm your legal name and Bright Learners location.");
+      await sendEmailVerification(credential.user, {
+        url: window.location.origin,
+        handleCodeInApp: false,
+      }).catch(() => undefined);
+      setMessage("Account created. Verify your email before completing your staff profile.");
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
       if (code.includes("email-already-in-use")) {
@@ -292,8 +295,7 @@ export default function Home() {
     );
   }
 
-  const usesPasswordSignIn = user.providerData.some((provider) => provider.providerId === "password");
-  if (usesPasswordSignIn && !user.emailVerified) {
+  if (!user.emailVerified) {
     return <EmailVerificationGate user={user} signOutUser={() => signOut(auth)} />;
   }
 
@@ -353,10 +355,28 @@ export default function Home() {
 function EmailVerificationGate({ user, signOutUser }: { user: User; signOutUser: () => void }) {
   const [status, setStatus] = useState("Check your Inbox and Spam/Junk folders for the verification email we sent when this account was created.");
   const [checking, setChecking] = useState(false);
+  useEffect(() => {
+    let active = true;
+    const checkWhenReturning = async () => {
+      if (document.visibilityState === "hidden") return;
+      await user.reload().catch(() => undefined);
+      if (active && auth.currentUser?.emailVerified) window.location.reload();
+    };
+    window.addEventListener("focus", checkWhenReturning);
+    document.addEventListener("visibilitychange", checkWhenReturning);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", checkWhenReturning);
+      document.removeEventListener("visibilitychange", checkWhenReturning);
+    };
+  }, [user]);
   async function resend() {
     setChecking(true);
     try {
-      await sendEmailVerification(user);
+      await sendEmailVerification(user, {
+        url: window.location.origin,
+        handleCodeInApp: false,
+      });
       setStatus(`Email sent — check your Inbox and Spam/Junk folders. The verification link was sent to ${user.email} and may take a few minutes to arrive.`);
     } catch {
       setStatus("The verification email could not be sent yet. Wait a moment and try again.");
