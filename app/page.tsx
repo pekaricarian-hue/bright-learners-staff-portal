@@ -30,6 +30,7 @@ type StaffProfile = {
   province: Province;
   status: "active";
   renewalIntervalMonths: 12;
+  toursCompleted?: Partial<Record<"learning" | "inspection" | "admin", boolean>>;
 };
 
 const albertaModules = [
@@ -86,6 +87,8 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [certificateOpen, setCertificateOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourPortal, setTourPortal] = useState<"learning" | "inspection" | "admin">("learning");
   const [view, setView] = useState<View>("dashboard");
   const [portalMode, setPortalMode] = useState<PortalMode>("chooser");
   const [location, setLocation] = useState("Sundance");
@@ -105,6 +108,10 @@ export default function Home() {
           const savedProfile = snapshot.data() as StaffProfile;
           setProfile(savedProfile);
           setLocation(savedProfile.location);
+          if (!savedProfile.toursCompleted?.learning) {
+            setTourPortal("learning");
+            setTourOpen(true);
+          }
         }
       } catch {
         setMessage("Your account is signed in, but its staff profile could not be loaded.");
@@ -127,6 +134,7 @@ export default function Home() {
       province: finalLocation === "Willowgrove" ? "SK" : "AB",
       status: "active",
       renewalIntervalMonths: 12,
+      toursCompleted: {},
     };
     await setDoc(doc(db, "users", user.uid), {
       ...newProfile,
@@ -163,6 +171,19 @@ export default function Home() {
     }, { merge: true });
     setProfile(updatedProfile);
     setEditProfileOpen(false);
+  }
+
+  async function finishTour(portal: "learning" | "inspection" | "admin") {
+    if (!user || !profile) return;
+    const toursCompleted = { ...profile.toursCompleted, [portal]: true };
+    await setDoc(doc(db, "users", user.uid), { toursCompleted, updatedAt: serverTimestamp() }, { merge: true });
+    setProfile({ ...profile, toursCompleted });
+    setTourOpen(false);
+  }
+
+  function startTour(portal: "learning" | "inspection" | "admin") {
+    setTourPortal(portal);
+    setTourOpen(true);
   }
 
   async function emailLogin(event: React.FormEvent) {
@@ -241,6 +262,8 @@ export default function Home() {
     return <PortalChooser name={profile.displayName} canAdmin={canAdmin} choose={(portal) => {
       setPortalMode(portal);
       setView(portal === "inspection" ? "director" : portal === "admin" ? "admin" : "dashboard");
+      const selectedTour = portal === "chooser" ? "learning" : portal;
+      if (!profile.toursCompleted?.[selectedTour]) startTour(selectedTour);
     }} signOutUser={() => signOut(auth)} />;
   }
 
@@ -260,6 +283,7 @@ export default function Home() {
               {canInspect && <button onClick={() => setPortalMode("chooser")}><span>⇄</span><div><b>Switch portal</b><small>Learning, inspections or admin</small></div></button>}
               <button onClick={() => setEditProfileOpen(true)}><span>✎</span><div><b>Edit profile</b><small>Name and certificate details</small></div></button>
               <button onClick={() => setCertificateOpen(true)}><span>☆</span><div><b>View certificate</b><small>Orientation completion record</small></div></button>
+              <button onClick={() => startTour(activePortal)}><span>?</span><div><b>Website walkthrough</b><small>Tour this portal again</small></div></button>
               <button className="account-signout" onClick={() => signOut(auth)}><span>→</span><div><b>Sign out</b><small>End this session</small></div></button>
             </div>
           </details>
@@ -273,6 +297,7 @@ export default function Home() {
       </section>
       {editProfileOpen && <EditProfile profile={profile} save={updateProfileName} close={() => setEditProfileOpen(false)} />}
       {certificateOpen && <CertificateStatus profile={profile} close={() => setCertificateOpen(false)} />}
+      {tourOpen && <GuidedTour portal={tourPortal} canAdmin={canAdmin} finish={() => finishTour(tourPortal)} close={() => setTourOpen(false)} />}
     </main>
   );
 }
@@ -296,6 +321,33 @@ function EditProfile({ profile, save, close }: { profile: StaffProfile; save: (f
 
 function CertificateStatus({ profile, close }: { profile: StaffProfile; close: () => void }) {
   return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor certificate-status" role="dialog" aria-modal="true" aria-labelledby="certificate-title"><button className="profile-editor-close" onClick={close} aria-label="Close certificate status">×</button><span className="certificate-seal">☆</span><p className="eyebrow">Bright Learners Academy</p><h2 id="certificate-title">Orientation certificate</h2><p>Your internal completion certificate will be generated for <b>{profile.displayName}</b> after every assigned {profile.province === "SK" ? "Saskatchewan" : "Alberta"} module and assessment is completed at 100%.</p><div className="certificate-progress"><span>Current progress</span><b>1 of {profile.province === "SK" ? 8 : 6} modules complete</b></div><button className="brand-button" disabled>Certificate not yet available</button><small>Once complete, this page will provide the dated PDF and module checklist.</small></section></div>;
+}
+
+function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | "inspection" | "admin"; canAdmin: boolean; finish: () => void; close: () => void }) {
+  const [step, setStep] = useState(0);
+  const tours = {
+    learning: [
+      ["Welcome to your dashboard", "This is your personal starting point. It shows your assigned academy, provincial course, progress and next required lesson."],
+      ["My Learning", "Open your required modules here. Complete them in order, review every slide and pass each knowledge check at 100%."],
+      ["Resources", "Find the Bright Learners policies and official provincial references used throughout your course."],
+      ["Progress and certificate", "Your progress saves to your account. When every module is complete, View certificate will provide the internal PDF and module checklist."],
+    ],
+    inspection: [
+      ["Director inspection portal", "This workspace is separate from learning. It holds facility checklists and records for the academy selected on each inspection."],
+      ["Start or resume an inspection", "Open the required checklist, save an unfinished draft and continue it later without losing responses."],
+      ["Document every exception", "Failed items require a note. Add corrective actions and photographs when evidence is useful."],
+      ["Review and submit", "Review all answers before submitting. The final record is timestamped, locked and sent to administration as a downloadable report."],
+    ],
+    admin: [
+      ["Administration console", "This workspace is restricted to the administrator and technical owner."],
+      ["Staff and access", "Manage employee, director and administrator access, academy assignment and provincial course assignment."],
+      ["Courses and inspections", "Edit module content, quiz questions, source references, checklist items, deadlines and renewal schedules."],
+      ["Records and reporting", "Track overdue work and download certificates, answer records, inspection reports, notes and photographs."],
+    ],
+  };
+  const steps = tours[portal];
+  const current = steps[step];
+  return <div className="tour-backdrop" role="presentation"><section className="guided-tour" role="dialog" aria-modal="true" aria-labelledby="tour-title"><button className="tour-skip" onClick={close}>Skip tour</button><div className={`tour-symbol tour-${portal}`}>{portal === "learning" ? "⌂" : portal === "inspection" ? "✓" : "A"}</div><p className="eyebrow">{portal === "learning" ? "Employee learning" : portal === "inspection" ? "Director inspections" : "Administration"} · Step {step + 1} of {steps.length}</p><h2 id="tour-title">{current[0]}</h2><p>{current[1]}</p>{portal === "admin" && !canAdmin && <small>Administration features are not available for your account.</small>}<div className="tour-dots">{steps.map((_, index) => <i key={index} className={index === step ? "active" : ""} />)}</div><footer><button className="outline-button" disabled={step === 0} onClick={() => setStep((value) => Math.max(0, value - 1))}>Back</button>{step < steps.length - 1 ? <button className="brand-button" onClick={() => setStep((value) => value + 1)}>Next →</button> : <button className="brand-button" onClick={finish}>Finish tour</button>}</footer></section></div>;
 }
 
 function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; canAdmin: boolean; choose: (portal: PortalMode) => void; signOutUser: () => void }) {
