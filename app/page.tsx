@@ -7,8 +7,10 @@ import {
   EmailAuthProvider,
   GoogleAuthProvider,
   User,
+  createUserWithEmailAndPassword,
   linkWithCredential,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -76,10 +78,10 @@ const directorEmails = new Set([
   "payroll@brightlearnersacademy.net",
 ]);
 
-function roleForEmail(email: string): StaffRole {
-  if (ownerEmails.has(email)) return "owner";
-  if (adminEmails.has(email)) return "admin";
-  if (directorEmails.has(email)) return "director";
+function roleForEmail(email: string, emailVerified: boolean): StaffRole {
+  if (emailVerified && ownerEmails.has(email)) return "owner";
+  if (emailVerified && adminEmails.has(email)) return "admin";
+  if (emailVerified && directorEmails.has(email)) return "director";
   return "employee";
 }
 
@@ -89,6 +91,8 @@ export default function Home() {
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [message, setMessage] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -135,7 +139,7 @@ export default function Home() {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
-      role: roleForEmail(signedInEmail),
+      role: roleForEmail(signedInEmail, user.emailVerified),
       location: finalLocation,
       province: finalLocation === "Willowgrove" ? "SK" : "AB",
       status: "active",
@@ -210,6 +214,27 @@ export default function Home() {
     }
   }
 
+  async function emailSignup(event: React.FormEvent) {
+    event.preventDefault();
+    setMessage("");
+    if (password.length < 8) return setMessage("Use a password with at least 8 characters.");
+    if (password !== confirmPassword) return setMessage("The two passwords do not match.");
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      await sendEmailVerification(credential.user).catch(() => undefined);
+      setMessage("Account created. Next, confirm your legal name and Bright Learners location.");
+    } catch (error) {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+      if (code.includes("email-already-in-use")) {
+        setMessage("An account already uses this email. Sign in, continue with Google, or reset the password.");
+      } else if (code.includes("invalid-email")) {
+        setMessage("Enter a valid email address.");
+      } else {
+        setMessage("We couldn’t create the account. Check the email and password, then try again.");
+      }
+    }
+  }
+
   async function googleLogin() {
     setMessage("");
     try {
@@ -248,17 +273,19 @@ export default function Home() {
             <h1>Everything your team needs to feel ready.</h1>
             <p className="hero-text">Complete province-specific onboarding, keep inspection records organized, and make every important answer easy to find.</p>
           </div>
-          <form className="login-card" onSubmit={emailLogin}>
+          <form className="login-card" onSubmit={authMode === "signin" ? emailLogin : emailSignup}>
             <div className="card-pin" />
-            <p className="handwritten">Welcome back!</p>
-            <h2>Sign in to continue</h2>
+            <p className="handwritten">{authMode === "signin" ? "Welcome back!" : "Join the team!"}</p>
+            <h2>{authMode === "signin" ? "Sign in to continue" : "Create your staff account"}</h2>
             <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@brightlearnersacademy.net" required /></label>
-            <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required /></label>
-            <button className="primary-button" type="submit">Sign in</button>
-            <button className="google-button" type="button" onClick={googleLogin}><b>G</b> Continue with Google</button>
-            <button className="text-button" type="button" onClick={resetPassword}>Reset password</button>
+            <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={authMode === "signup" ? "At least 8 characters" : "••••••••"} minLength={authMode === "signup" ? 8 : undefined} required /></label>
+            {authMode === "signup" && <label>Confirm password<input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Enter it again" minLength={8} required /></label>}
+            <button className="primary-button" type="submit">{authMode === "signin" ? "Sign in" : "Create account"}</button>
+            <button className="google-button" type="button" onClick={googleLogin}><b>G</b>{authMode === "signin" ? "Continue with Google" : "Create account with Google"}</button>
+            {authMode === "signin" && <button className="text-button" type="button" onClick={resetPassword}>Reset password</button>}
+            <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode((current) => current === "signin" ? "signup" : "signin"); setPassword(""); setConfirmPassword(""); setMessage(""); }}>{authMode === "signin" ? "Don’t have an account? Create one" : "Already have an account? Sign in"}</button>
             {message && <p className="form-message" role="status">{message}</p>}
-            <p className="tiny">Accounts are created by an administrator. Contact your director if you need access.</p>
+            <p className="tiny">{authMode === "signin" ? "Use Google or the email and password attached to your staff account." : "Employees choose their academy after signup. Director and administrator access is restricted to approved emails."}</p>
           </form>
         </section>
       </main>
