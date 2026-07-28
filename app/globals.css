@@ -108,7 +108,9 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   position: fixed;
   z-index: 120;
   width: min(430px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
   padding: 28px;
+  overflow-y: auto;
   pointer-events: auto;
   transition: top .22s ease, left .22s ease;
 }

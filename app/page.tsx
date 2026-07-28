@@ -320,7 +320,7 @@ export default function Home() {
           <Link className="portal-logo-link" href="/" onClick={() => setView(activePortal === "inspection" ? "director" : activePortal === "admin" ? "admin" : "dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
           <nav aria-label="Portal">
             {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
-            {activePortal === "inspection" && <><span className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
+            {activePortal === "inspection" && <><span data-tour="inspection-heading" className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
             {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
           </nav>
           <details className="account-menu">
@@ -457,9 +457,9 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
       ["Your profile", "Open this menu to edit your legal certificate name, view certificate status, restart this walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
     inspection: [
-      ["Director inspection portal", "This workspace is separate from learning. It holds facility checklists and records for the academy selected on each inspection.", "[data-tour='inspection-start']"],
-      ["Start or resume an inspection", "Open the required checklist, save an unfinished draft and continue it later without losing responses.", "[data-tour='inspection-start']"],
-      ["Document every exception", "Failed items require a note. Add corrective actions and photographs when evidence is useful.", "[data-tour='inspection-records']"],
+      ["Director inspection portal", "This workspace is separate from learning. It holds facility checklists and records for the academy selected on each inspection.", "[data-tour='inspection-heading']"],
+      ["Start or resume an inspection", "Choose the academy, start its required checklist, save an unfinished draft and continue it later without losing responses.", "[data-tour='inspection-button']"],
+      ["Document every exception", "Failed items require a note. Add corrective actions and photographs when evidence is useful.", "[data-tour='inspection-exception']"],
       ["Your profile", "Use this menu to switch portals, edit your name, restart the walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
     admin: [
@@ -484,7 +484,10 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
       const rect = target.getBoundingClientRect();
       const width = Math.min(430, window.innerWidth - 32);
       const left = Math.min(Math.max(16, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 16);
-      setPosition({ top: rect.bottom + 18, left, arrow: "top" });
+      const estimatedHeight = 315;
+      const fitsBelow = rect.bottom + 18 + estimatedHeight <= window.innerHeight - 16;
+      const top = fitsBelow ? rect.bottom + 18 : Math.max(16, rect.top - estimatedHeight - 18);
+      setPosition({ top, left, arrow: fitsBelow ? "top" : "bottom" });
     };
     if (!target.closest(".portal-topbar")) {
       target.scrollIntoView({ block: "start" });
@@ -927,11 +930,11 @@ function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: str
 
 function DirectorView({ location, setLocation }: { location: string; setLocation: (v: string) => void }) {
   return <div className="content">
-    <section data-tour="inspection-start" className="action-row"><div><p className="eyebrow">Authorized location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select></div><button className="primary-button">＋ Start monthly inspection</button></section>
+    <section data-tour="inspection-start" className="action-row"><div><p className="eyebrow">Authorized location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select></div><button data-tour="inspection-button" className="primary-button">＋ Start monthly inspection</button></section>
     <div className="stat-grid"><article><span>✓</span><div><b>4</b><small>Completed this month</small></div></article><article><span>!</span><div><b>2</b><small>Open follow-ups</small></div></article><article><span>◷</span><div><b>Jul 18</b><small>Last inspection</small></div></article></div>
     <section data-tour="inspection-records" className="table-card"><div className="section-heading"><div><p className="eyebrow">Recent activity</p><h2>{location} inspections</h2></div><button className="outline-button">Download records</button></div>
       <div className="record"><span className="record-status complete">✓</span><div><b>Monthly facility audit</b><small>Completed by Margaret Ferriss • July 18, 2026</small></div><strong>100%</strong><button>View report</button></div>
-      <div className="record"><span className="record-status followup">!</span><div><b>Outdoor playspace check</b><small>2 items require follow-up • July 12, 2026</small></div><strong>86%</strong><button>Continue</button></div>
+      <div data-tour="inspection-exception" className="record"><span className="record-status followup">!</span><div><b>Outdoor playspace check</b><small>2 items require follow-up • July 12, 2026</small></div><strong>86%</strong><button>Continue</button></div>
     </section>
     <p className="tiny muted">Failed items require an explanation. Photo evidence and every response will be timestamped in the signed inspection package.</p>
   </div>;
