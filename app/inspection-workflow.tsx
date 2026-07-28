@@ -6,6 +6,7 @@ import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage
 import { db, storage } from "./firebase";
 import { monthlyInspectionSections } from "./inspection-data";
 import ExitConfirmation from "./exit-confirmation";
+import SignaturePad from "./signature-pad";
 
 type Result = "pass" | "fail" | "na";
 type Response = {
@@ -33,6 +34,8 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
   const [sectionIndex, setSectionIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, Response>>({});
   const [overallNotes, setOverallNotes] = useState("");
+  const [signatureName, setSignatureName] = useState("");
+  const [signatureData, setSignatureData] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingItem, setUploadingItem] = useState("");
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
@@ -55,6 +58,8 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
             setInspectionId(existingId);
             setResponses(draft.data().responses || {});
             setOverallNotes(draft.data().overallNotes || "");
+            setSignatureName(draft.data().signatureName || directorName);
+            setSignatureData(draft.data().signatureData || "");
             setSectionIndex(draft.data().sectionIndex || 0);
             setMessage("Saved draft restored.");
             return;
@@ -63,6 +68,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         const newId = `${safe(location)}_${userId}_${Date.now()}`;
         if (!active) return;
         setInspectionId(newId);
+        setSignatureName(directorName);
         await setDoc(doc(db, "inspectionDrafts", pointerId), { inspectionId: newId, userId, location, updatedAt: serverTimestamp() });
         await setDoc(doc(db, "inspections", newId), {
           id: newId,
@@ -74,6 +80,8 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
           status: "draft",
           responses: {},
           overallNotes: "",
+          signatureName: directorName,
+          signatureData: "",
           sectionIndex: 0,
           startedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -87,13 +95,15 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     return () => { active = false; };
   }, [directorName, location, pointerId, userId]);
 
-  async function persist(nextResponses: Record<string, Response>, nextSection = sectionIndex, nextNotes = overallNotes) {
+  async function persist(nextResponses: Record<string, Response>, nextSection = sectionIndex, nextNotes = overallNotes, nextSignatureName = signatureName, nextSignatureData = signatureData) {
     if (!inspectionId) return false;
     setSaving(true);
     try {
       await setDoc(doc(db, "inspections", inspectionId), {
         responses: nextResponses,
         overallNotes: nextNotes,
+        signatureName: nextSignatureName,
+        signatureData: nextSignatureData,
         sectionIndex: nextSection,
         answeredCount: Object.values(nextResponses).filter((response) => response.result).length,
         updatedAt: serverTimestamp(),
@@ -176,12 +186,18 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       setMessage(`Every Fail and N/A response needs an explanation. ${undocumentedExceptions.length} explanation${undocumentedExceptions.length === 1 ? "" : "s"} missing.`);
       return;
     }
+    if (!signatureName.trim() || !signatureData) {
+      setMessage("Type your full name and add your handwritten signature before submitting.");
+      return;
+    }
     setSaving(true);
     try {
       await setDoc(doc(db, "inspections", inspectionId), {
         status: "completed",
         responses,
         overallNotes,
+        signatureName: signatureName.trim(),
+        signatureData,
         answeredCount: allItems.length,
         failedCount: failed,
         notificationStatus: "pending",
@@ -236,6 +252,11 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         })}
       </div>
       <label className="inspection-overall-notes">Section or inspection notes<textarea value={overallNotes} onChange={(event) => setOverallNotes(event.target.value)} onBlur={() => void persist(responses, sectionIndex, overallNotes)} placeholder="Optional general notes for this inspection..." /></label>
+      {sectionIndex === monthlyInspectionSections.length - 1 && <section className="inspection-signoff">
+        <div><p className="eyebrow">Required final sign-off</p><h2>Director declaration</h2><p>I confirm that I completed this inspection and that the recorded answers, exceptions and supporting evidence are accurate to the best of my knowledge.</p></div>
+        <label>Type your full legal name <em>Required</em><input value={signatureName} onChange={(event) => setSignatureName(event.target.value)} onBlur={() => void persist(responses, sectionIndex, overallNotes, signatureName, signatureData)} placeholder="First and last name" /></label>
+        <label>Handwritten signature <em>Required</em><SignaturePad value={signatureData} onChange={(value) => { setSignatureData(value); void persist(responses, sectionIndex, overallNotes, signatureName, value); }} /></label>
+      </section>}
       <footer className="inspection-actions">
         <button className="outline-button" disabled={sectionIndex === 0} onClick={() => void moveSection(sectionIndex - 1)}>← Previous section</button>
         {sectionIndex < monthlyInspectionSections.length - 1 ? <button className="primary-button" onClick={() => void moveSection(sectionIndex + 1)}>Save & next section →</button> : <button className="primary-button" disabled={saving} onClick={() => void submitInspection()}>Complete inspection →</button>}

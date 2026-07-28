@@ -26,6 +26,8 @@ type InspectionRecord = {
   failedCount?: number;
   responses?: Record<string, InspectionResponse>;
   overallNotes?: string;
+  signatureName?: string;
+  signatureData?: string;
   startedAt?: { toDate?: () => Date };
   updatedAt?: { toDate?: () => Date };
   completedAt?: { toDate?: () => Date };
@@ -155,6 +157,10 @@ function InspectionReport({ record, generating, download, close }: { record: Ins
         })}
       </section>)}
       {record.overallNotes && <section className="inspection-report-notes"><b>Overall notes</b><p>{record.overallNotes}</p></section>}
+      <section className="inspection-report-signature">
+        <div><b>Signed by</b><p>{record.signatureName || record.directorName}</p></div>
+        {record.signatureData ? <img src={record.signatureData} alt={`Handwritten signature of ${record.signatureName || record.directorName}`} /> : <span>Signature unavailable for this older record</span>}
+      </section>
       <footer className="inspection-actions"><button className="outline-button" onClick={close}>Close report</button><button className="primary-button" disabled={generating} onClick={download}>{generating ? "Creating PDF..." : "Download PDF"}</button></footer>
     </section>
   </div>;
@@ -239,6 +245,20 @@ async function createInspectionPdf(record: InspectionRecord) {
     addPageIfNeeded(60);
     writeWrapped("Overall notes", 12, pageWidth - margin * 2, true);
     writeWrapped(record.overallNotes, 10);
+  }
+  addPageIfNeeded(130);
+  y += 12;
+  writeWrapped("Director sign-off", 12, pageWidth - margin * 2, true);
+  writeWrapped(`Typed name: ${record.signatureName || record.directorName}`, 10);
+  if (record.signatureData) {
+    try {
+      pdf.addImage(record.signatureData, "PNG", margin, y, 190, 48, undefined, "FAST");
+      y += 58;
+    } catch {
+      writeWrapped("Handwritten signature is stored with the electronic inspection record.", 9);
+    }
+  } else {
+    writeWrapped("Handwritten signature unavailable for this older record.", 9);
   }
   const pageCount = pdf.getNumberOfPages();
   for (let page = 1; page <= pageCount; page += 1) {
