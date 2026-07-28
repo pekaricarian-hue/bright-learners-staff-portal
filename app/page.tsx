@@ -19,6 +19,7 @@ import {
 } from "firebase/auth";
 import { arrayUnion, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import InspectionWorkflow from "./inspection-workflow";
 
 type View = "dashboard" | "employee" | "resources" | "director" | "admin";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
@@ -351,7 +352,7 @@ export default function Home() {
         {activePortal === "learning" && view === "dashboard" && <DashboardView userId={user.uid} name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} />}
         {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} location={assignedLocation} province={assignedProvince} />}
         {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
-        {activePortal === "inspection" && <DirectorView location={location} setLocation={setLocation} />}
+        {activePortal === "inspection" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
         {activePortal === "admin" && <AdminView />}
       </section>
       {editProfileOpen && <EditProfile profile={profile} save={updateProfile} close={() => setEditProfileOpen(false)} />}
@@ -1297,15 +1298,28 @@ function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: str
   return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} quiz={quiz} />;
 }
 
-function DirectorView({ location, setLocation }: { location: string; setLocation: (v: string) => void }) {
+function DirectorView({ userId, directorName, location, setLocation }: { userId: string; directorName: string; location: string; setLocation: (v: string) => void }) {
+  const [workflowOpen, setWorkflowOpen] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState("");
   return <div className="content">
-    <section data-tour="inspection-start" className="action-row"><div><p className="eyebrow">Authorized location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select></div><button data-tour="inspection-button" className="primary-button">＋ Start monthly inspection</button></section>
-    <div className="stat-grid"><article><span>✓</span><div><b>4</b><small>Completed this month</small></div></article><article><span>!</span><div><b>2</b><small>Open follow-ups</small></div></article><article><span>◷</span><div><b>Jul 18</b><small>Last inspection</small></div></article></div>
-    <section data-tour="inspection-records" className="table-card"><div className="section-heading"><div><p className="eyebrow">Recent activity</p><h2>{location} inspections</h2></div><button className="outline-button">Download records</button></div>
-      <div className="record"><span className="record-status complete">✓</span><div><b>Monthly facility audit</b><small>Completed by Margaret Ferriss • July 18, 2026</small></div><strong>100%</strong><button>View report</button></div>
-      <div data-tour="inspection-exception" className="record"><span className="record-status followup">!</span><div><b>Outdoor playspace check</b><small>2 items require follow-up • July 12, 2026</small></div><strong>86%</strong><button>Continue</button></div>
+    <section data-tour="inspection-start" className="action-row">
+      <div><p className="eyebrow">Inspection location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select><small>Choose the academy where you are completing this inspection.</small></div>
+      <button data-tour="inspection-button" className="primary-button" onClick={() => { setCompletionMessage(""); setWorkflowOpen(true); }}>Start or resume monthly inspection</button>
     </section>
-    <p className="tiny muted">Failed items require an explanation. Photo evidence and every response will be timestamped in the signed inspection package.</p>
+    {completionMessage && <p className="inspection-success" role="status">{completionMessage}</p>}
+    <div className="stat-grid inspection-feature-grid">
+      <article><span>86</span><div><b>Checklist items</b><small>Across six audit sections</small></div></article>
+      <article><span>✓</span><div><b>Automatic drafts</b><small>Resume unfinished work anytime</small></div></article>
+      <article><span>⌁</span><div><b>Photo evidence</b><small>Optional on every item</small></div></article>
+    </div>
+    <section data-tour="inspection-records" className="table-card inspection-overview">
+      <div className="section-heading"><div><p className="eyebrow">Monthly facility self-assessment</p><h2>What the inspection covers</h2></div></div>
+      {["Licensing", "Health & Safety", "Public Health & Infection Prevention", "Curriculum & Planning", "Transitions", "Supervision"].map((section, index) =>
+        <div className="record" key={section}><span className="record-status">{index + 1}</span><div><b>{section}</b><small>Tap Pass, Fail or N/A for every checklist item.</small></div></div>
+      )}
+    </section>
+    <p className="tiny muted">A failed item requires an explanation. Corrective action, responsible person, due date and photo evidence can be added before submission.</p>
+    {workflowOpen && <InspectionWorkflow userId={userId} directorName={directorName} location={location} close={() => setWorkflowOpen(false)} completed={() => { setWorkflowOpen(false); setCompletionMessage(`Inspection completed for ${location}. Opening this checklist again will start a new inspection.`); }} />}
   </div>;
 }
 
