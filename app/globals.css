@@ -136,6 +136,19 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   transform: translateX(-50%) rotate(225deg);
 }
 
+.guided-tour.anchored.arrow-left::before {
+  top: 50%;
+  left: -10px;
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.guided-tour.anchored.arrow-right::before {
+  top: 50%;
+  right: -10px;
+  left: auto;
+  transform: translateY(-50%) rotate(135deg);
+}
+
 .guided-tour.anchored.arrow-none::before {
   display: none;
 }

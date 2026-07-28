@@ -503,14 +503,31 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
     const place = () => {
       const rect = target.getBoundingClientRect();
       const width = Math.min(360, window.innerWidth - 32);
-      const left = Math.min(Math.max(16, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 16);
-      const estimatedHeight = 285;
-      const fitsBelow = rect.bottom + 18 + estimatedHeight <= window.innerHeight - 16;
-      const desiredTop = fitsBelow ? rect.bottom + 18 : rect.top - estimatedHeight - 18;
-      const top = Math.min(
-        Math.max(16, desiredTop),
+      const estimatedHeight = 360;
+      const clampTop = (value: number) => Math.min(
+        Math.max(16, value),
         Math.max(16, window.innerHeight - estimatedHeight - 16),
       );
+      if (portal !== "inspection" && rect.left >= width + 28) {
+        setPosition({
+          top: clampTop(rect.top + rect.height / 2 - estimatedHeight / 2),
+          left: rect.left - width - 22,
+          arrow: "right",
+        });
+        return;
+      }
+      if (portal !== "inspection" && window.innerWidth - rect.right >= width + 28) {
+        setPosition({
+          top: clampTop(rect.top + rect.height / 2 - estimatedHeight / 2),
+          left: rect.right + 22,
+          arrow: "left",
+        });
+        return;
+      }
+      const left = Math.min(Math.max(16, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 16);
+      const fitsBelow = rect.bottom + 18 + estimatedHeight <= window.innerHeight - 16;
+      const desiredTop = fitsBelow ? rect.bottom + 18 : rect.top - estimatedHeight - 18;
+      const top = clampTop(desiredTop);
       setPosition({ top, left, arrow: fitsBelow ? "top" : "bottom" });
     };
     if (!target.closest(".portal-topbar")) {
