@@ -6,20 +6,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
     function email() {
       return signedIn() ? request.auth.token.email.lower() : "";
     }
 
     function isOwner() {
-      return email() == "pekaric.arian@gmail.com";
+      return verified() && email() == "pekaric.arian@gmail.com";
     }
 
     function isAdmin() {
-      return isOwner() || email() == "admin@brightlearnersacademy.net";
+      return isOwner() || (verified() && email() == "admin@brightlearnersacademy.net");
     }
 
     function isDirector() {
-      return email() in [
+      return verified() && email() in [
         "sylvandaycare@gmail.com",
         "sundance@brightlearnersacademy.net",
         "midnapore@brightlearnersacademy.net",
@@ -41,7 +45,7 @@ service cloud.firestore {
     }
 
     function owns(userId) {
-      return signedIn() && request.auth.uid == userId;
+      return verified() && request.auth.uid == userId;
     }
 
     match /users/{userId} {
@@ -60,27 +64,27 @@ service cloud.firestore {
     }
 
     match /courses/{courseId} {
-      allow read: if signedIn();
+      allow read: if verified();
       allow write: if isAdmin();
     }
 
     match /progress/{progressId} {
-      allow read: if signedIn() &&
+      allow read: if verified() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if signedIn() &&
+      allow create: if verified() &&
         request.resource.data.userId == request.auth.uid;
-      allow update: if signedIn() &&
+      allow update: if verified() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid;
       allow delete: if isAdmin();
     }
 
     match /inspections/{inspectionId} {
-      allow read: if signedIn() &&
+      allow read: if verified() &&
         (resource.data.directorId == request.auth.uid || isAdmin());
-      allow create: if signedIn() &&
+      allow create: if verified() &&
         request.resource.data.directorId == request.auth.uid;
-      allow update: if signedIn() &&
+      allow update: if verified() &&
         resource.data.directorId == request.auth.uid &&
         request.resource.data.directorId == request.auth.uid;
       allow delete: if isAdmin();
@@ -88,7 +92,7 @@ service cloud.firestore {
 
     match /auditEvents/{eventId} {
       allow read: if isAdmin();
-      allow create: if signedIn() &&
+      allow create: if verified() &&
         request.resource.data.actorId == request.auth.uid;
       allow update, delete: if false;
     }

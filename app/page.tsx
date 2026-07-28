@@ -292,6 +292,11 @@ export default function Home() {
     );
   }
 
+  const usesPasswordSignIn = user.providerData.some((provider) => provider.providerId === "password");
+  if (usesPasswordSignIn && !user.emailVerified) {
+    return <EmailVerificationGate user={user} signOutUser={() => signOut(auth)} />;
+  }
+
   if (!profile) {
     return <ProfileSetup user={user} fixedLocation={directorLocations[signedInEmail]} save={createProfile} signOutUser={() => signOut(auth)} />;
   }
@@ -343,6 +348,38 @@ export default function Home() {
       {tourOpen && <GuidedTour portal={tourPortal} canAdmin={canAdmin} finish={() => finishTour(tourPortal)} close={() => setTourOpen(false)} />}
     </main>
   );
+}
+
+function EmailVerificationGate({ user, signOutUser }: { user: User; signOutUser: () => void }) {
+  const [status, setStatus] = useState("We sent a verification link when this account was created.");
+  const [checking, setChecking] = useState(false);
+  async function resend() {
+    setChecking(true);
+    try {
+      await sendEmailVerification(user);
+      setStatus(`A new verification email was sent to ${user.email}. Check the inbox and spam folder.`);
+    } catch {
+      setStatus("The verification email could not be sent yet. Wait a moment and try again.");
+    } finally {
+      setChecking(false);
+    }
+  }
+  async function continueAfterVerification() {
+    setChecking(true);
+    try {
+      await user.reload();
+      if (auth.currentUser?.emailVerified) {
+        window.location.reload();
+        return;
+      }
+      setStatus("This email is not verified yet. Open the link in the verification email, then try again.");
+    } catch {
+      setStatus("We could not check the email status. Please try again.");
+    } finally {
+      setChecking(false);
+    }
+  }
+  return <main className="verification-gate"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><span className="verification-icon">✉</span><p className="eyebrow">One quick security step</p><h1>Verify your email address.</h1><p>Before you choose a location or begin Bright Learners training, confirm that <b>{user.email}</b> belongs to you.</p><div className="verification-status" role="status">{status}</div><button className="brand-button" disabled={checking} onClick={continueAfterVerification}>{checking ? "Checking…" : "I’ve verified my email — continue"}</button><button className="outline-button" disabled={checking} onClick={resend}>Resend verification email</button><small>The verification link is sent securely by Firebase Authentication.</small></section></main>;
 }
 
 function ProfileSetup({ user, fixedLocation, save, signOutUser }: { user: User; fixedLocation?: string; save: (firstName: string, lastName: string, location: string) => Promise<void>; signOutUser: () => void }) {
