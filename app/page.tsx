@@ -17,13 +17,23 @@ import { auth } from "./firebase";
 type View = "dashboard" | "employee" | "resources" | "director" | "admin";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 
-const modules = [
+const albertaModules = [
   { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "⌂" },
   { title: "Healthy children, healthy centre", eyebrow: "Illness, hygiene & outbreaks", time: "18 min", colour: "blue", icon: "+" },
   { title: "Clean toys, safer play", eyebrow: "Cleaning & disinfection", time: "16 min", colour: "rose", icon: "✦" },
   { title: "Food, allergies & safe meals", eyebrow: "Every bite handled safely", time: "14 min", colour: "green", icon: "◇" },
   { title: "Diapering, sleep & daily care", eyebrow: "Safe routines", time: "18 min", colour: "lavender", icon: "☾" },
   { title: "Emergencies & safe spaces", eyebrow: "Ready when it matters", time: "20 min", colour: "orange", icon: "!" },
+];
+const saskatchewanModules = [
+  { title: "Welcome to Willowgrove", eyebrow: "Your role, centre & Saskatchewan framework", time: "18 min", colour: "sun", icon: "⌂" },
+  { title: "Illness & communicable disease", eyebrow: "Exclusion, isolation, records & notification", time: "22 min", colour: "blue", icon: "+" },
+  { title: "Hand hygiene, diapering & cleaning", eyebrow: "Four-step tables and cross-contamination", time: "20 min", colour: "rose", icon: "✦" },
+  { title: "Medication, allergies & emergency plans", eyebrow: "Locked storage and dual verification", time: "18 min", colour: "lavender", icon: "◇" },
+  { title: "Food service & safe meals", eyebrow: "Onsite preparation and food from home", time: "16 min", colour: "green", icon: "○" },
+  { title: "Supervision & hazardous items", eyebrow: "Positioning, headcounts and safe storage", time: "22 min", colour: "orange", icon: "◎" },
+  { title: "Emergencies, fire drills & incidents", eyebrow: "Evacuation, reporting and first response", time: "20 min", colour: "blue", icon: "!" },
+  { title: "Child guidance & duty to report", eyebrow: "Positive guidance and child protection", time: "18 min", colour: "green", icon: "♡" },
 ];
 
 const locations = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
@@ -196,12 +206,14 @@ function ResourcesView() {
 }
 
 function EmployeeView() {
+  const [province, setProvince] = useState<"AB" | "SK">("AB");
   const [completedCount, setCompletedCount] = useState(1);
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [answer, setAnswer] = useState("");
   const [quizMessage, setQuizMessage] = useState("");
+  const modules = province === "AB" ? albertaModules : saskatchewanModules;
   const completion = Math.round((completedCount / modules.length) * 100);
 
   function checkAnswer() {
@@ -215,16 +227,19 @@ function EmployeeView() {
 
   return <div className="content learning-content">
     <section className="learning-intro">
-      <div><p className="handwritten">Your learning path</p><h2>Alberta employee orientation</h2><p>Follow the string from one pinned lesson to the next. Finish each knowledge check with 100% to unlock the next card.</p></div>
+      <div><p className="handwritten">Your learning path</p><h2>{province === "AB" ? "Alberta employee orientation" : "Saskatchewan - Willowgrove orientation"}</h2><p>Each provincial course combines Bright Learners procedures with the rules and public-health guidance that apply to that location.</p></div>
       <div className="course-progress"><b>{completion}%</b><span>{completedCount} of {modules.length} complete</span></div>
     </section>
+    <section className="province-switcher" aria-label="Provincial course selector"><div><p className="eyebrow">Compare courses</p><h3>{province === "AB" ? "Alberta requirements" : "Saskatchewan requirements"}</h3></div><div><button className={province === "AB" ? "active" : ""} onClick={() => { setProvince("AB"); setSelectedModule(null); }}>Alberta</button><button className={province === "SK" ? "active" : ""} onClick={() => { setProvince("SK"); setSelectedModule(null); }}>Saskatchewan</button></div></section>
+    {province === "SK" && <section className="sk-status-alert"><span>SK</span><div><b>Willowgrove is operating under a provisional licence.</b><p>Close monitoring is expected for six months. The Ministry licence copy is still pending. Site directions and verbal Public Health guidance are identified separately from written requirements.</p></div></section>}
+    <ProvinceComparison province={province} />
 
     <section className="professional-modules" aria-label="Course modules">
       <div className="module-list-heading"><div><p className="eyebrow">Required learning</p><h3>Your modules</h3></div><span>Complete in order</span></div>
       <div className="professional-module-grid">
         {modules.map((module, index) => {
           const complete = index < completedCount;
-          const available = index <= completedCount;
+          const available = true;
           return <article className={`professional-module ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
             <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); setQuizMessage(""); setAnswer(""); }}>
               <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span className="program-icon">{module.icon}</span><small>{module.eyebrow}</small></div>
@@ -248,7 +263,7 @@ function EmployeeView() {
         <p className="eyebrow">Module {selectedModule + 1} • {modules[selectedModule].time}</p>
         <h2 id="module-preview-title">{modules[selectedModule].title}</h2>
         <p className="preview-description">{modules[selectedModule].eyebrow}. Work through the lesson, review its official references, then complete the knowledge check with 100%.</p>
-        <div className="preview-meta"><span><b>{selectedModule < completedCount ? "Complete" : "Available"}</b>Status</span><span><b>100%</b>Pass mark</span><span><b>AB</b>Course</span></div>
+        <div className="preview-meta"><span><b>{selectedModule < completedCount ? "Complete" : "Available"}</b>Status</span><span><b>100%</b>Pass mark</span><span><b>{province}</b>Course</span></div>
         <button className="primary-button preview-start" onClick={() => setLessonOpen(true)}>{selectedModule < completedCount ? "Review module" : "Start module"}</button>
         <button className={`favorite-button ${favorites.includes(selectedModule) ? "active" : ""}`} onClick={() => setFavorites((current) => current.includes(selectedModule) ? current.filter((item) => item !== selectedModule) : [...current, selectedModule])}>{favorites.includes(selectedModule) ? "★ Favorited" : "☆ Add to favorites"}</button>
       </section>
@@ -257,9 +272,9 @@ function EmployeeView() {
     {selectedModule !== null && lessonOpen && <div className="lesson-backdrop" role="dialog" aria-modal="true" aria-labelledby="lesson-title">
       <section className="lesson-drawer">
         <button className="lesson-close" onClick={() => { setLessonOpen(false); setSelectedModule(null); }} aria-label="Close lesson">×</button>
-        <p className="eyebrow">Module {selectedModule + 1} • Alberta orientation</p>
+        <p className="eyebrow">Module {selectedModule + 1} • {province === "AB" ? "Alberta" : "Saskatchewan"} orientation</p>
         <h2 id="lesson-title">{modules[selectedModule].title}</h2>
-        {selectedModule === 0 ? <WelcomeLesson /> : selectedModule === 1 ? <HealthLesson answer={answer} setAnswer={setAnswer} checkAnswer={checkAnswer} message={quizMessage} /> :
+        {province === "SK" ? <SaskatchewanModuleLesson moduleIndex={selectedModule} /> : selectedModule === 0 ? <WelcomeLesson /> : selectedModule === 1 ? <HealthLesson answer={answer} setAnswer={setAnswer} checkAnswer={checkAnswer} message={quizMessage} /> :
           <div className="lesson-placeholder"><span>{modules[selectedModule].icon}</span><h3>This lesson is on the board.</h3><p>Its complete cited content and knowledge check are being assembled from Bright Learners orientation material and the applicable Alberta requirements.</p></div>}
       </section>
     </div>}
@@ -267,6 +282,10 @@ function EmployeeView() {
 }
 
 type OrientationSlide = { kicker: string; title: string; body: string; points?: string[]; media?: string; ref: string };
+
+function ProvinceComparison({ province }: { province: "AB" | "SK" }) {
+  return <section className="province-comparison"><div className={province === "AB" ? "selected" : ""}><span>AB</span><div><b>Alberta course</b><p>AHS childcare guidance, Alberta facility-based licensing, FLIGHT curriculum, Alberta inspection records and outbreak direction.</p></div></div><div className={province === "SK" ? "selected" : ""}><span>SK</span><div><b>Saskatchewan course</b><p>SK Child Care Act and Regulations, Play and Exploration, Willowgrove handbook, provisional-licence follow-up and site-specific directions.</p></div></div></section>;
+}
 
 function WelcomeLesson() {
   const [slide, setSlide] = useState(0);
@@ -310,6 +329,62 @@ function LessonWorkspace({ slides, slide, setSlide, quiz }: { slides: Orientatio
       </nav>
     </main>
   </div>;
+}
+
+const skLessonSlides: OrientationSlide[][] = [
+  [
+    { kicker: "Welcome", title: "Your Willowgrove centre", body: "Willowgrove serves Saskatoon families at 415 Willowgrove Square. The centre is currently operating under a provisional licence and expects close monitoring during the next six months.", points: ["Director: Merilyn De Guzman", "Centre phone: 306-244-2404", "Questions about licensing go through centre leadership"], ref: "Willowgrove Parent Handbook - pages 5, 46 and 48; management update dated July 2026" },
+    { kicker: "How we learn", title: "Saskatchewan uses Play and Exploration", body: "The Saskatchewan framework supports curiosity, relationships, belonging and learning through play. Bright Learners combines it with emergent curriculum and Reggio Emilia practices.", points: ["Observe children before planning", "Build from their questions and interests", "Make learning visible to families"], ref: "Willowgrove Parent Handbook - pages 9-11" },
+    { kicker: "Professional standard", title: "Safety and relationships guide your work", body: "Educators protect children, communicate respectfully, maintain confidentiality and follow applicable Saskatchewan requirements.", points: ["Ask when a direction is unclear", "Report hazards immediately", "Document required actions"], ref: "Willowgrove Parent Handbook - pages 5-10 and 46" },
+    { kicker: "Current status", title: "Be ready for closer monitoring", body: "A provisional licence means consistent practice and complete records are especially important. Follow posted procedures exactly and respond promptly to director coaching.", ref: "Willowgrove management update - July 2026; licence copy pending from Ministry" },
+  ],
+  [
+    { kicker: "Recognize", title: "Watch for illness and document it", body: "Children with vomiting, fever, diarrhea, unexplained rash or cough, communicable-disease symptoms, or unusual lethargy may not remain in care.", points: ["Assess the child", "Notify the parent promptly", "Complete the Illness Record"], ref: "Willowgrove Parent Handbook - pages 37-38" },
+    { kicker: "Separate safely", title: "A sick child remains supervised", body: "Move the child away from the group to the director or front office, keep them comfortable on a cot and maintain direct supervision until pickup.", ref: "Willowgrove Parent Handbook - page 39" },
+    { kicker: "Public Health", title: "Know what the centre was told to report", body: "Willowgrove reports that Public Health requested notification for whooping cough, measles and gastrointestinal illness outbreaks. The Communicable Disease line provided was 306-655-4612.", points: ["This was verbal guidance", "It was not issued in writing", "Escalate uncertain cases to the director"], ref: "Site-reported verbal Public Health guidance - June/July 2026; not an official written directive" },
+    { kicker: "HFMD", title: "Hand, Foot and Mouth Disease is handled locally", body: "The centre experienced HFMD cases in June. Saskatchewan Public Health reportedly advised that HFMD cases did not require notification, but exclusion, cleaning and centre illness procedures still apply.", ref: "Site-reported verbal Public Health guidance; Willowgrove Parent Handbook - pages 37-39" },
+  ],
+  [
+    { kicker: "Hand hygiene", title: "Wash after every diaper change", body: "Hand hygiene must happen after every diaper change, even when gloves are used. Follow the posted diapering procedure and leave the station ready for the next child.", ref: "Licensing Consultant direction reported by Willowgrove; Parent Handbook - page 20" },
+    { kicker: "Four steps", title: "Clean and sanitize tables correctly", body: "The current licensing direction is to reinforce the four-step table process: remove debris, wash, rinse, then sanitize using the approved product and contact time.", points: ["Use separate clean materials", "Test solution strength where required", "Allow the surface to remain wet for the required time"], ref: "Licensing Consultant direction reported by Willowgrove; Saskatchewan public-health cleaning practice" },
+    { kicker: "Cross-contamination", title: "Keep contaminated items separate", body: "After illness, clean the cot promptly. Seal or immediately launder used bedding and keep soiled items away from clean laundry and supplies.", ref: "Willowgrove Parent Handbook - page 39" },
+    { kicker: "Daily practice", title: "Cleaning never replaces supervision", body: "Coordinate cleaning with another educator so ratios, visibility and active supervision are maintained at all times.", ref: "Willowgrove Parent Handbook - pages 42-44" },
+  ],
+  [
+    { kicker: "Locked storage", title: "Medication boxes stay locked", body: "All non-emergency medication must remain in a locked container inaccessible to children. Refrigerated medication also stays in a locked container inside the refrigerator.", ref: "Willowgrove Parent Handbook - page 34; Licensing Consultant direction" },
+    { kicker: "Authorization", title: "No form means no administration", body: "The Saskatchewan Medication Administration Form must be complete before medication is given. Follow the original label, written instructions, dose and time.", ref: "Willowgrove Parent Handbook - pages 34-35" },
+    { kicker: "Double check", title: "Two educators verify every dose", body: "Two educators confirm the right child, medication, dose and time, then both sign the record immediately after administration.", ref: "Willowgrove Parent Handbook - page 35" },
+    { kicker: "Emergency plans", title: "Emergency medication must be available", body: "Children with severe allergies require an emergency plan. Emergency medication stays secure but quickly accessible to trained staff and includes a recent child photo.", ref: "Willowgrove Parent Handbook - page 36" },
+  ],
+  [
+    { kicker: "Onsite service", title: "Willowgrove prepares food onsite", body: "Morning snack, lunch and afternoon snack are prepared onsite. The menu rotates over four weeks and is updated seasonally.", ref: "Willowgrove Parent Handbook - page 32; Revised Menu - pages 1-4" },
+    { kicker: "Food safety", title: "Use safe handling, storage and sanitation", body: "Designated food staff follow Saskatchewan health guidance for preparation, temperature control, sanitation and storage. Required staff maintain food-handler training.", ref: "Willowgrove Parent Handbook - page 33" },
+    { kicker: "Food from home", title: "Label and temperature-control outside food", body: "Food brought from home must be clearly labelled with the child's name. Use cooler packs or thermoses when temperature control is required.", ref: "Willowgrove Parent Handbook - page 32; Licensing Consultant direction" },
+    { kicker: "Allergies", title: "The centre is nut-free", body: "Check allergy and dietary information before serving. The centre minimizes exposure but does not promise an allergen-free environment.", ref: "Willowgrove Parent Handbook - pages 32-33 and 36" },
+  ],
+  [
+    { kicker: "Active supervision", title: "Know where every child is", body: "Position yourself to see and hear children, scan the whole area, move through blind spots and anticipate what may happen next.", ref: "Willowgrove Parent Handbook - pages 42-44" },
+    { kicker: "Transitions", title: "Headcount every transition", body: "Use a consistent headcount or roll-call system whenever children leave or return to a room, outdoor area or vehicle. Compare counts with attendance.", ref: "Willowgrove Parent Handbook - pages 43-44" },
+    { kicker: "Hazards", title: "Keep hazardous items out of reach", body: "Cleaning products, plastic bags, staff belongings, scissors, kitchen knives and other hazardous items must be locked or otherwise inaccessible to children.", ref: "Licensing Consultant direction; Willowgrove Parent Handbook - page 42" },
+    { kicker: "No distractions", title: "Supervision is your primary task", body: "Do not text, read, complete paperwork or perform cleaning that pulls attention away from children when you are responsible for supervision.", ref: "Willowgrove Parent Handbook - page 44" },
+  ],
+  [
+    { kicker: "Prepare", title: "Know exits, contacts and emergency supplies", body: "Emergency procedures and contacts are displayed in classrooms. Evacuation backpacks include child information, contacts and first-aid supplies.", ref: "Willowgrove Parent Handbook - page 40" },
+    { kicker: "Evacuate", title: "Move to the Willowgrove muster point", body: "The handbook identifies the muster point as Island Boulevard across the street, at the front parking lot. Maintain counts and supervision throughout.", ref: "Willowgrove Parent Handbook - page 40" },
+    { kicker: "Practice", title: "Fire drills happen monthly", body: "Monthly fire drills are documented and reviewed. Summer tornado drills prepare staff and children for severe-weather procedures.", ref: "Willowgrove Parent Handbook - page 40" },
+    { kicker: "Report", title: "Document injuries and serious events", body: "Provide first aid, notify families according to severity, complete the correct injury or unusual-occurrence record and escalate serious injury or illness immediately.", ref: "Willowgrove Parent Handbook - pages 41-42" },
+  ],
+  [
+    { kicker: "Positive guidance", title: "Teach the behaviour children need", body: "Use calm redirection, consistent expectations, choices and supportive environments. Respond to developmentally normal behaviour with patience rather than punishment.", ref: "Bright Learners Orientation - slides 51-54; Willowgrove Parent Handbook child-guidance section" },
+    { kicker: "Inclusion", title: "Every child belongs", body: "Adapt routines, activities and environments so children of different abilities, cultures, languages and family structures can participate meaningfully.", ref: "Willowgrove Parent Handbook - pages 9-11 and 45" },
+    { kicker: "Duty to report", title: "You report suspected abuse directly", body: "Anyone with reasonable grounds to suspect abuse, neglect or a child in need of protection must report immediately to Saskatchewan Child Protection Services. The concern cannot be delegated.", ref: "Willowgrove Parent Handbook - page 45; The Child and Family Services Act (Saskatchewan)" },
+    { kicker: "After reporting", title: "Inform leadership without increasing risk", body: "Tell the director after making the report unless doing so could place the child at further risk. Do not notify the family before the report when prohibited by child-protection requirements.", ref: "Willowgrove Parent Handbook - page 45" },
+  ],
+];
+
+function SaskatchewanModuleLesson({ moduleIndex }: { moduleIndex: number }) {
+  const [slide, setSlide] = useState(0);
+  return <LessonWorkspace slides={skLessonSlides[moduleIndex]} slide={slide} setSlide={setSlide} />;
 }
 
 function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: string; setAnswer: (value: string) => void; checkAnswer: () => void; message: string }) {
