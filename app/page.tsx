@@ -248,7 +248,7 @@ export default function Home() {
     if (!email) return setMessage("Enter your email first, then choose reset password.");
     try {
       await sendPasswordResetEmail(auth, email);
-      setMessage("Password setup/reset email sent. Check your inbox and spam folder.");
+      setMessage(`Email sent — check your Inbox and Spam/Junk folders. The secure password link was sent to ${email} and may take a few minutes to arrive.`);
     } catch {
       setMessage("We couldn’t send a password link for that address. If the account uses Google, continue with Google and add a password from the profile menu.");
     }
@@ -284,7 +284,7 @@ export default function Home() {
             <button className="google-button" type="button" onClick={googleLogin}><b>G</b>{authMode === "signin" ? "Continue with Google" : "Create account with Google"}</button>
             {authMode === "signin" && <button className="text-button" type="button" onClick={resetPassword}>Reset password</button>}
             <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode((current) => current === "signin" ? "signup" : "signin"); setPassword(""); setConfirmPassword(""); setMessage(""); }}>{authMode === "signin" ? "Don’t have an account? Create one" : "Already have an account? Sign in"}</button>
-            {message && <p className="form-message" role="status">{message}</p>}
+            {message && <p className={`form-message ${message.startsWith("Email sent") ? "email-delivery-notice" : ""}`} role="status">{message}</p>}
             <p className="tiny">{authMode === "signin" ? "Use Google or the email and password attached to your staff account." : "Employees choose their academy after signup. Director and administrator access is restricted to approved emails."}</p>
           </form>
         </section>
@@ -351,13 +351,13 @@ export default function Home() {
 }
 
 function EmailVerificationGate({ user, signOutUser }: { user: User; signOutUser: () => void }) {
-  const [status, setStatus] = useState("We sent a verification link when this account was created.");
+  const [status, setStatus] = useState("Check your Inbox and Spam/Junk folders for the verification email we sent when this account was created.");
   const [checking, setChecking] = useState(false);
   async function resend() {
     setChecking(true);
     try {
       await sendEmailVerification(user);
-      setStatus(`A new verification email was sent to ${user.email}. Check the inbox and spam folder.`);
+      setStatus(`Email sent — check your Inbox and Spam/Junk folders. The verification link was sent to ${user.email} and may take a few minutes to arrive.`);
     } catch {
       setStatus("The verification email could not be sent yet. Wait a moment and try again.");
     } finally {
@@ -432,7 +432,7 @@ function PasswordResetDialog({ email, close }: { email: string; close: () => voi
     setStatus("");
     try {
       await sendPasswordResetEmail(auth, email);
-      setStatus(`A secure password setup/reset link was sent to ${email}. Check the inbox and spam folder.`);
+      setStatus(`Email sent — check your Inbox and Spam/Junk folders. The secure password link was sent to ${email} and may take a few minutes to arrive.`);
     } catch {
       setStatus("The password email could not be sent. Please try again or contact the administrator.");
     } finally {
