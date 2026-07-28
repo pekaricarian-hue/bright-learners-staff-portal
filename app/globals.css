@@ -1340,16 +1340,16 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 
   .portal-topbar nav {
     width: 100%;
-    gap: 6px;
+    gap: 4px;
     padding: 2px 0 0;
-    overflow: visible;
+    overflow-x: hidden;
   }
 
   .portal-topbar nav button {
     flex: 1;
     min-width: 0;
     padding: 9px 7px;
-    font-size: 12px;
+    font-size: 11px;
     text-align: center;
   }
 
