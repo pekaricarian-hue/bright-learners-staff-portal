@@ -1318,7 +1318,7 @@ function DirectorView({ userId, directorName, location, setLocation }: { userId:
         <div className="record" key={section}><span className="record-status">{index + 1}</span><div><b>{section}</b><small>Tap Pass, Fail or N/A for every checklist item.</small></div></div>
       )}
     </section>
-    <p className="tiny muted">A failed item requires an explanation. Corrective action, responsible person, due date and photo evidence can be added before submission.</p>
+    <p className="tiny muted">Fail and N/A responses require an explanation. Failed items can also include corrective action, a responsible person, due date and photo evidence.</p>
     {workflowOpen && <InspectionWorkflow userId={userId} directorName={directorName} location={location} close={() => setWorkflowOpen(false)} completed={() => { setWorkflowOpen(false); setCompletionMessage(`Inspection completed for ${location}. Opening this checklist again will start a new inspection.`); }} />}
   </div>;
 }

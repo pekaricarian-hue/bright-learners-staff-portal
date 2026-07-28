@@ -110,6 +110,19 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     void persist(next);
   }
 
+  function setResult(itemId: string, result: Result) {
+    const previous = responses[itemId]?.result;
+    if (result === "pass") {
+      updateItem(itemId, { result, note: "", correctiveAction: "", responsiblePerson: "", dueDate: "", photoUrl: "", photoName: "" });
+      return;
+    }
+    if (result === "na") {
+      updateItem(itemId, { result, note: previous === "na" ? responses[itemId]?.note : "", correctiveAction: "", responsiblePerson: "", dueDate: "", photoUrl: "", photoName: "" });
+      return;
+    }
+    updateItem(itemId, { result, note: previous === "fail" ? responses[itemId]?.note : "" });
+  }
+
   async function addPhoto(itemId: string, event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !inspectionId) return;
@@ -139,13 +152,16 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
 
   async function submitInspection() {
     const unanswered = allItems.filter((item) => !responses[item.id]?.result);
-    const incompleteFailures = allItems.filter((item) => responses[item.id]?.result === "fail" && !responses[item.id]?.note?.trim());
+    const undocumentedExceptions = allItems.filter((item) =>
+      (responses[item.id]?.result === "fail" || responses[item.id]?.result === "na") &&
+      !responses[item.id]?.note?.trim()
+    );
     if (unanswered.length) {
       setMessage(`Answer all items before submitting. ${unanswered.length} remaining.`);
       return;
     }
-    if (incompleteFailures.length) {
-      setMessage(`Every failed item needs an explanation. ${incompleteFailures.length} explanation${incompleteFailures.length === 1 ? "" : "s"} missing.`);
+    if (undocumentedExceptions.length) {
+      setMessage(`Every Fail and N/A response needs an explanation. ${undocumentedExceptions.length} explanation${undocumentedExceptions.length === 1 ? "" : "s"} missing.`);
       return;
     }
     setSaving(true);
@@ -186,19 +202,21 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
           return <article className={`inspection-item ${response.result || ""}`} key={item.id}>
             <div className="inspection-item-copy"><span>{sectionIndex + 1}.{index + 1}</span><p>{item.text}</p></div>
             <div className="inspection-result-buttons" role="group" aria-label={`Result for ${item.text}`}>
-              <button className={response.result === "pass" ? "selected" : ""} onClick={() => updateItem(item.id, { result: "pass" })}>✓ Pass</button>
-              <button className={response.result === "fail" ? "selected" : ""} onClick={() => updateItem(item.id, { result: "fail" })}>! Fail</button>
-              <button className={response.result === "na" ? "selected" : ""} onClick={() => updateItem(item.id, { result: "na" })}>— N/A</button>
+              <button className={response.result === "pass" ? "selected" : ""} onClick={() => setResult(item.id, "pass")}>✓ Pass</button>
+              <button className={response.result === "fail" ? "selected" : ""} onClick={() => setResult(item.id, "fail")}>! Fail</button>
+              <button className={response.result === "na" ? "selected" : ""} onClick={() => setResult(item.id, "na")}>— N/A</button>
             </div>
-            {response.result === "fail" && <div className="inspection-followup">
-              <label>Why did this item fail? <em>Required</em><textarea value={response.note || ""} onChange={(event) => updateItem(item.id, { note: event.target.value })} placeholder="Describe exactly what was observed..." /></label>
-              <label>Corrective action<textarea value={response.correctiveAction || ""} onChange={(event) => updateItem(item.id, { correctiveAction: event.target.value })} placeholder="What needs to be corrected?" /></label>
-              <div><label>Responsible person<input value={response.responsiblePerson || ""} onChange={(event) => updateItem(item.id, { responsiblePerson: event.target.value })} placeholder="Name or role" /></label><label>Due date<input type="date" value={response.dueDate || ""} onChange={(event) => updateItem(item.id, { dueDate: event.target.value })} /></label></div>
+            {(response.result === "fail" || response.result === "na") && <div className={`inspection-followup ${response.result}`}>
+              <label>{response.result === "fail" ? "Why did this item fail?" : "Why is this item not applicable?"} <em>Required</em><textarea value={response.note || ""} onChange={(event) => updateItem(item.id, { note: event.target.value })} placeholder={response.result === "fail" ? "Describe exactly what was observed..." : "Explain why this item does not apply at this location..."} /></label>
+              {response.result === "fail" && <>
+                <label>Corrective action<textarea value={response.correctiveAction || ""} onChange={(event) => updateItem(item.id, { correctiveAction: event.target.value })} placeholder="What needs to be corrected?" /></label>
+                <div><label>Responsible person<input value={response.responsiblePerson || ""} onChange={(event) => updateItem(item.id, { responsiblePerson: event.target.value })} placeholder="Name or role" /></label><label>Due date<input type="date" value={response.dueDate || ""} onChange={(event) => updateItem(item.id, { dueDate: event.target.value })} /></label></div>
+              </>}
             </div>}
-            <div className="inspection-photo-row">
+            {response.result === "fail" && <div className="inspection-photo-row">
               <label className="inspection-camera">Camera: {uploadingItem === item.id ? "Uploading..." : response.photoUrl ? "Replace photo" : "Add optional photo"}<input type="file" accept="image/*" capture="environment" disabled={uploadingItem === item.id} onChange={(event) => void addPhoto(item.id, event)} /></label>
               {response.photoUrl && <a href={response.photoUrl} target="_blank" rel="noopener noreferrer">View {response.photoName || "photo"} ↗</a>}
-            </div>
+            </div>}
           </article>;
         })}
       </div>

@@ -650,15 +650,19 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 
 .inspection-items {
   display: grid;
-  gap: 14px;
+  gap: 7px;
   padding: 0 28px;
 }
 
 .inspection-item {
-  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 12px 20px;
+  align-items: center;
+  padding: 11px 14px;
   border: 1px solid #d3dce3;
-  border-left: 6px solid #b8c3cc;
-  border-radius: 16px;
+  border-left: 5px solid #b8c3cc;
+  border-radius: 10px;
   background: white;
 }
 
@@ -683,10 +687,10 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 }
 
 .inspection-item-copy p {
-  margin: 4px 0 16px;
+  margin: 2px 0;
   color: #17345e;
-  font-size: 17px;
-  line-height: 1.45;
+  font-size: 15px;
+  line-height: 1.35;
 }
 
 .inspection-result-buttons {
@@ -696,7 +700,7 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 }
 
 .inspection-result-buttons button {
-  min-height: 50px;
+  min-height: 42px;
   border: 1px solid #b8c5cf;
   border-radius: 11px;
   background: #f9fbfc;
@@ -710,15 +714,23 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 .inspection-result-buttons button:nth-child(3).selected { border-color: #758398; background: #e9edf2; color: #465468; }
 
 .inspection-followup {
+  grid-column: 1 / -1;
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 14px;
-  margin-top: 16px;
-  padding: 16px;
+  margin-top: 2px;
+  padding: 13px;
   border-radius: 12px;
   background: #fff2ef;
 }
 
+.inspection-followup.na {
+  grid-template-columns: 1fr;
+  background: #eef1f5;
+}
+
 .inspection-followup > div {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
@@ -753,15 +765,16 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 
 .inspection-followup textarea,
 .inspection-overall-notes textarea {
-  min-height: 88px;
+  min-height: 68px;
   resize: vertical;
 }
 
 .inspection-photo-row {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .inspection-camera {
@@ -805,9 +818,23 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   .inspection-progress { margin-left: 16px; margin-right: 16px; }
   .inspection-progress-copy { flex-direction: column; padding-left: 16px; padding-right: 16px; }
   .inspection-section-tabs { padding-left: 16px; padding-right: 16px; }
-  .inspection-result-buttons { grid-template-columns: 1fr; }
+  .inspection-item { grid-template-columns: 1fr; padding: 13px; }
+  .inspection-result-buttons { grid-template-columns: repeat(3, 1fr); }
+  .inspection-followup { grid-template-columns: 1fr; }
   .inspection-followup > div { grid-template-columns: 1fr; }
   .inspection-overall-notes { margin-left: 16px; margin-right: 16px; }
   .inspection-actions { flex-direction: column-reverse; }
   .inspection-actions button { width: 100%; }
+}
+
+@media (min-width: 721px) and (max-width: 1050px) {
+  .inspection-workflow { width: calc(100% - 24px); max-height: calc(100vh - 24px); }
+  .inspection-workflow-header { padding: 18px 22px 14px; }
+  .inspection-progress { margin: 14px 22px 6px; }
+  .inspection-progress-copy { padding: 0 22px 12px; }
+  .inspection-section-tabs { padding: 0 22px 14px; }
+  .inspection-items { padding: 0 22px; }
+  .inspection-item { grid-template-columns: minmax(0, 1fr) 285px; }
+  .inspection-overall-notes { margin: 16px 22px 0; }
+  .inspection-actions { padding: 14px 22px 18px; }
 }
