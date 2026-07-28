@@ -61,8 +61,13 @@ Target: 8 modules, 110 teaching slides, 78 scored questions, 100% required.
 
 - Current module, current slide, completed modules and quiz attempts are stored
   per user and province.
-- Leaving the page does not erase progress.
-- A completed module remains reviewable.
+- Leaving unfinished work does not erase progress.
+- An unfinished module resumes at its saved slide.
+- A completed module remains reviewable, but every review starts again at
+  Slide 1 instead of reopening the completed quiz.
+- An unfinished inspection resumes its saved draft. Starting the same
+  inspection after submission creates a new blank inspection; it never reopens
+  or overwrites the completed record.
 - If a regulated lesson changes materially, administration publishes a new
   course version and assigns the required refresher rather than silently
   changing a historical completion record.

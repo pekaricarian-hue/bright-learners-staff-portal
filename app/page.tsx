@@ -677,7 +677,7 @@ function EmployeeView({ userId, location, province }: { userId: string; location
         <button className="lesson-close" onClick={() => { setLessonOpen(false); setSelectedModule(null); }} aria-label="Close lesson">×</button>
         <p className="eyebrow">Module {selectedModule + 1} • {province === "AB" ? "Alberta" : "Saskatchewan"} orientation</p>
         <h2 id="lesson-title">{modules[selectedModule].title}</h2>
-        <CourseModuleLesson province={province} moduleIndex={selectedModule} initialSlide={moduleSlides[String(selectedModule)] || 0} onSlideChange={(slideIndex) => saveSlide(selectedModule, slideIndex)} onAttempt={(score, answers) => recordAttempt(selectedModule, score, answers)} />
+        <CourseModuleLesson province={province} moduleIndex={selectedModule} initialSlide={completedModules.includes(selectedModule) ? 0 : moduleSlides[String(selectedModule)] || 0} onSlideChange={(slideIndex) => saveSlide(selectedModule, slideIndex)} onAttempt={(score, answers) => recordAttempt(selectedModule, score, answers)} />
       </section>
     </div>}
   </div>;
