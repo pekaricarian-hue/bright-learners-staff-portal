@@ -580,6 +580,7 @@ function ResourcesView({ location, province }: { location: string; province: Pro
 
 function EmployeeView({ userId, location, province }: { userId: string; location: string; province: Province }) {
   const [completedModules, setCompletedModules] = useState<number[]>([]);
+  const [moduleSlides, setModuleSlides] = useState<Record<string, number>>({});
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -589,9 +590,24 @@ function EmployeeView({ userId, location, province }: { userId: string; location
 
   useEffect(() => {
     getDoc(doc(db, "progress", progressId)).then((snapshot) => {
-      if (snapshot.exists()) setCompletedModules(snapshot.data().completedModules || []);
+      if (snapshot.exists()) {
+        setCompletedModules(snapshot.data().completedModules || []);
+        setModuleSlides(snapshot.data().moduleSlides || {});
+      }
     }).catch(() => undefined);
   }, [progressId]);
+
+  async function saveSlide(moduleIndex: number, slideIndex: number) {
+    const key = String(moduleIndex);
+    setModuleSlides((current) => ({ ...current, [key]: slideIndex }));
+    await setDoc(doc(db, "progress", progressId), {
+      userId,
+      courseId: `${province.toLowerCase()}-orientation`,
+      currentModule: moduleIndex,
+      moduleSlides: { ...moduleSlides, [key]: slideIndex },
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
 
   async function recordAttempt(moduleIndex: number, score: number, answers: Record<string, number>) {
     const passed = score === 100;
@@ -651,7 +667,7 @@ function EmployeeView({ userId, location, province }: { userId: string; location
         <h2 id="module-preview-title">{modules[selectedModule].title}</h2>
         <p className="preview-description">{modules[selectedModule].eyebrow}. Work through the lesson, review its official references, then complete the knowledge check with 100%.</p>
         <div className="preview-meta"><span><b>{completedModules.includes(selectedModule) ? "Complete" : "Available"}</b>Status</span><span><b>100%</b>Pass mark</span><span><b>{province}</b>Course</span></div>
-        <button className="primary-button preview-start" onClick={() => setLessonOpen(true)}>{completedModules.includes(selectedModule) ? "Review module" : "Start module"}</button>
+        <button className="primary-button preview-start" onClick={() => setLessonOpen(true)}>{completedModules.includes(selectedModule) ? "Review module" : moduleSlides[String(selectedModule)] ? "Resume module" : "Start module"}</button>
         <button className={`favorite-button ${favorites.includes(selectedModule) ? "active" : ""}`} onClick={() => setFavorites((current) => current.includes(selectedModule) ? current.filter((item) => item !== selectedModule) : [...current, selectedModule])}>{favorites.includes(selectedModule) ? "★ Favorited" : "☆ Add to favorites"}</button>
       </section>
     </div>}
@@ -661,7 +677,7 @@ function EmployeeView({ userId, location, province }: { userId: string; location
         <button className="lesson-close" onClick={() => { setLessonOpen(false); setSelectedModule(null); }} aria-label="Close lesson">×</button>
         <p className="eyebrow">Module {selectedModule + 1} • {province === "AB" ? "Alberta" : "Saskatchewan"} orientation</p>
         <h2 id="lesson-title">{modules[selectedModule].title}</h2>
-        <CourseModuleLesson province={province} moduleIndex={selectedModule} onAttempt={(score, answers) => recordAttempt(selectedModule, score, answers)} />
+        <CourseModuleLesson province={province} moduleIndex={selectedModule} initialSlide={moduleSlides[String(selectedModule)] || 0} onSlideChange={(slideIndex) => saveSlide(selectedModule, slideIndex)} onAttempt={(score, answers) => recordAttempt(selectedModule, score, answers)} />
       </section>
     </div>}
   </div>;
@@ -913,12 +929,16 @@ const skQuizBanks: QuizQuestion[][] = [
   ],
 ];
 
-function CourseModuleLesson({ province, moduleIndex, onAttempt }: { province: Province; moduleIndex: number; onAttempt: (score: number, answers: Record<string, number>) => Promise<void> }) {
-  const [slide, setSlide] = useState(0);
+function CourseModuleLesson({ province, moduleIndex, initialSlide, onSlideChange, onAttempt }: { province: Province; moduleIndex: number; initialSlide: number; onSlideChange: (slide: number) => Promise<void>; onAttempt: (score: number, answers: Record<string, number>) => Promise<void> }) {
+  const [slide, setSlide] = useState(initialSlide);
   const slides = province === "AB" ? abLessonSlides[moduleIndex] : skLessonSlides[moduleIndex];
   const questions = province === "AB" ? quizBanks.AB[moduleIndex] : skQuizBanks[moduleIndex];
-  const quiz = <ModuleQuiz questions={questions} moduleIndex={moduleIndex} goToSlide={setSlide} onAttempt={onAttempt} />;
-  return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} quiz={quiz} />;
+  const moveToSlide = (nextSlide: number) => {
+    setSlide(nextSlide);
+    void onSlideChange(nextSlide);
+  };
+  const quiz = <ModuleQuiz questions={questions} moduleIndex={moduleIndex} goToSlide={moveToSlide} onAttempt={onAttempt} />;
+  return <LessonWorkspace slides={slides} slide={slide} setSlide={moveToSlide} quiz={quiz} />;
 }
 
 function ModuleQuiz({ questions, moduleIndex, goToSlide, onAttempt }: { questions: QuizQuestion[]; moduleIndex: number; goToSlide: (slide: number) => void; onAttempt: (score: number, answers: Record<string, number>) => Promise<void> }) {
