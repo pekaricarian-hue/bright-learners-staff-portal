@@ -579,15 +579,17 @@ function DashboardView({ name, location, province, setView }: { name: string; lo
 
 function ResourcesView({ location, province }: { location: string; province: Province }) {
   const resources = [
-    ["Health & safety", "AHS childcare health and safety guidance", "AB"],
-    ["Cleaning & disinfecting", "Toy, surface and equipment procedures", "AB"],
-    ["Diapering procedure", "Step-by-step reference poster", "AB"],
-    ["Licensing handbook", "Facility-based child care requirements", "AB"],
-    ["Communicable disease", "School and child care centre guidance", "SK"],
-    ["Bright Learners orientation", "Company expectations and program philosophy", "BLA"],
+    { title: "Health & safety", description: "AHS health and safety guidance for operators of child-care facilities.", province: "AB", href: "https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-health-safety-guidlines-child-care-facilities.pdf" },
+    { title: "Cleaning & disinfecting", description: "AHS procedures for food-contact surfaces, equipment, toys and other surfaces.", province: "AB", href: "https://www.albertahealthservices.ca/assets/wf/eph/wf-eh-cleaning-and-sanitizing-food-contact-surfaces-equipment-toys-and-other-surfaces.pdf" },
+    { title: "Diapering procedure", description: "AHS step-by-step diapering procedure poster.", province: "AB", href: "https://www.albertahealthservices.ca/assets/wf/eph/wf-eph-diapering-procedure-poster.pdf" },
+    { title: "Licensing handbook", description: "Government of Alberta facility-based child-care licensing requirements.", province: "AB", href: "https://open.alberta.ca/dataset/997f35bc-930d-44e5-b33b-a139087adc65/resource/387f6dc4-49c9-42ee-982e-7b5adba75ab5/download/cs-child-care-licensing-handbook-facility-based.pdf" },
+    { title: "Communicable disease", description: "Saskatchewan Health Authority guidance for schools and child-care centres.", province: "SK", href: "https://www.saskhealthauthority.ca/your-health/conditions-illnesses-services-wellness/all-z/communicable-disease-control/communicable-disease-control-schools-and-child-care-centres" },
+    { title: "Child Care Licensee Manual", description: "Government of Saskatchewan manual for regulated child-care licensees.", province: "SK", href: "https://publications.saskatchewan.ca/api/v1/products/76930/formats/150060/download" },
+    { title: "Child care in Saskatchewan", description: "Provincial overview of regulated care, ratios, licensing and reporting concerns.", province: "SK", href: "https://www.saskatchewan.ca/residents/family-and-social-support/child-care/child-care-in-saskatchewan" },
+    { title: "Bright Learners Academy", description: "Academy locations, programs and organization information.", province: "BLA", href: "https://brightlearnersacademy.net/" },
   ];
-  const assignedResources = resources.filter((resource) => resource[2] === province || resource[2] === "BLA");
-  return <div className="content resources-content"><div className="page-intro"><p className="eyebrow">{location} reference library</p><h1>Resources</h1><p>Only your assigned provincial policies and Bright Learners guides are shown here.</p></div><div className="resource-grid">{assignedResources.map(([title, description, resourceProvince], index) => <article key={title}><span className={`resource-icon resource-${index + 1}`}>{index + 1}</span><small>{resourceProvince} resource</small><h2>{title}</h2><p>{description}</p><button>Open resource →</button></article>)}</div></div>;
+  const assignedResources = resources.filter((resource) => resource.province === province || resource.province === "BLA");
+  return <div className="content resources-content"><div className="page-intro"><p className="eyebrow">{location} reference library</p><h1>Resources</h1><p>Only your assigned provincial policies and Bright Learners guides are shown here. Resources open in a new tab so your course progress stays in place.</p></div><div className="resource-grid">{assignedResources.map((resource, index) => <article key={resource.title}><span className={`resource-icon resource-${index + 1}`}>{index + 1}</span><small>{resource.province} resource</small><h2>{resource.title}</h2><p>{resource.description}</p><a href={resource.href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${resource.title}`}>Open resource ↗</a></article>)}</div></div>;
 }
 
 function EmployeeView({ userId, location, province }: { userId: string; location: string; province: Province }) {
