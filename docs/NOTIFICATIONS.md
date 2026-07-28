@@ -24,6 +24,7 @@ This file is the product source of truth for portal emails.
 - Upcoming inspection reminder for their assigned location.
 - Due-today inspection reminder.
 - Overdue inspection reminder until the inspection is submitted or an administrator changes the assignment.
+- Every inspection reminder sent to a director must CC `admin@brightlearnersacademy.net`, including upcoming, due-today, and overdue reminders.
 - A director must never receive another location's reminder unless an administrator has assigned that location to them.
 
 ## Employees
