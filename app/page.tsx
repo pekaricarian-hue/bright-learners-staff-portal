@@ -650,18 +650,17 @@ function EmployeeView({ userId, location, province }: { userId: string; location
     <aside className="course-assignment-note"><b>{province === "SK" ? "Saskatchewan" : "Alberta"} course assigned through {location}.</b><span>Need a different assignment? Contact an administrator.</span></aside>
 
     <section className="professional-modules" aria-label="Course modules">
-      <div className="module-list-heading"><div><p className="eyebrow">Required learning</p><h3>Your modules</h3></div><span>Complete in order</span></div>
+      <div className="module-list-heading"><div><p className="eyebrow">Required learning</p><h3>Your modules</h3></div><span>Take them in any order</span></div>
       <div className="professional-module-grid">
         {modules.map((module, index) => {
           const complete = completedModules.includes(index);
-          const available = index === 0 || completedModules.includes(index - 1);
-          return <article className={`professional-module ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
-            <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); }}>
+          return <article className={`professional-module ${complete ? "complete" : "current"}`} key={module.title}>
+            <button className="module-card-button" onClick={() => { setSelectedModule(index); setLessonOpen(false); }}>
               <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span className="program-icon">{module.icon}</span><small>{module.eyebrow}</small></div>
               <div className="module-card-top"><span className={`module-number ${module.colour}`}>{complete ? "✓" : index + 1}</span><span className="module-time">{module.time}</span></div>
               <div className="module-card-main"><small>Module {index + 1}</small><h3>{module.title}</h3></div>
-              <div className="module-hover-description"><p>{module.eyebrow}</p><span>{complete ? "Completed • Review anytime" : available ? "Ready to continue" : "Complete the previous module to unlock"}</span></div>
-              <div className="module-status-line"><i /><span>{complete ? "Complete" : available ? "In progress" : "Locked"}</span></div>
+              <div className="module-hover-description"><p>{module.eyebrow}</p><span>{complete ? "Completed • Review anytime" : moduleSlides[String(index)] ? "Resume whenever you are ready" : "Available to start"}</span></div>
+              <div className="module-status-line"><i /><span>{complete ? "Complete" : moduleSlides[String(index)] ? "In progress" : "Available"}</span></div>
             </button>
             {favorites.includes(index) && <span className="favorite-marker" aria-label="Favorited">★</span>}
           </article>;
@@ -1261,7 +1260,7 @@ function ModuleQuiz({ questions, moduleIndex, goToSlide, onAttempt }: { question
       {question.options.map((option, optionIndex) => <label key={option}><input type="radio" name={question.id} checked={answers[question.id] === optionIndex} onChange={() => { setAnswers((current) => ({ ...current, [question.id]: optionIndex })); setResult(null); }} />{option}</label>)}
     </fieldset>)}
     <button className="primary-button" disabled={Object.keys(answers).length !== questions.length || saving} onClick={submit}>{saving ? "Saving attempt…" : "Submit knowledge check"}</button>
-    {result && result.score === 100 && <div className="quiz-result passed" role="status"><b>100% - module complete.</b><p>Your result and completion time have been saved. The next module is now unlocked.</p></div>}
+    {result && result.score === 100 && <div className="quiz-result passed" role="status"><b>100% - module complete.</b><p>Your result and completion time have been saved. You can take the remaining modules in any order.</p></div>}
     {result && result.score < 100 && <div className="quiz-result needs-review" role="status"><b>{result.score}% - review required.</b><p>You need 100% to pass. Review these exact slides, then return and answer the missed questions again.</p>{result.missed.map((question) => <article key={question.id}><div><strong>Review Module {moduleIndex + 1}, Slide {question.reviewSlide + 1}</strong><span>{question.explanation}</span><small>{question.ref}</small></div><button className="outline-button" onClick={() => goToSlide(question.reviewSlide)}>Review slide {question.reviewSlide + 1}</button></article>)}</div>}
   </section>;
 }
