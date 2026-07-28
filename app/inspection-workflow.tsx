@@ -39,6 +39,12 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
   const [saving, setSaving] = useState(false);
   const [uploadingItem, setUploadingItem] = useState("");
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
+  const [validationIssue, setValidationIssue] = useState<null | {
+    title: string;
+    message: string;
+    sectionIndex: number;
+    targetId: string;
+  }>(null);
   const [message, setMessage] = useState("Loading saved inspection...");
   const pointerId = `${userId}_${safe(location)}`;
   const allItems = useMemo(() => monthlyInspectionSections.flatMap((section) => section.items), []);
@@ -179,15 +185,34 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       !responses[item.id]?.note?.trim()
     );
     if (unanswered.length) {
-      setMessage(`Answer all items before submitting. ${unanswered.length} remaining.`);
+      const first = unanswered[0];
+      const targetSection = monthlyInspectionSections.findIndex((candidate) => candidate.items.some((item) => item.id === first.id));
+      setValidationIssue({
+        title: "The checklist is not finished",
+        message: `${unanswered.length} item${unanswered.length === 1 ? " has" : "s have"} not been answered. Every item must be marked Pass, Fail or N/A before this inspection can be submitted.`,
+        sectionIndex: targetSection,
+        targetId: `inspection-item-${first.id}`,
+      });
       return;
     }
     if (undocumentedExceptions.length) {
-      setMessage(`Every Fail and N/A response needs an explanation. ${undocumentedExceptions.length} explanation${undocumentedExceptions.length === 1 ? "" : "s"} missing.`);
+      const first = undocumentedExceptions[0];
+      const targetSection = monthlyInspectionSections.findIndex((candidate) => candidate.items.some((item) => item.id === first.id));
+      setValidationIssue({
+        title: "An explanation is missing",
+        message: `${undocumentedExceptions.length} Fail or N/A response${undocumentedExceptions.length === 1 ? " needs" : "s need"} an explanation before this inspection can be submitted.`,
+        sectionIndex: targetSection,
+        targetId: `inspection-item-${first.id}`,
+      });
       return;
     }
     if (!signatureName.trim() || !signatureData) {
-      setMessage("Type your full name and add your handwritten signature before submitting.");
+      setValidationIssue({
+        title: "Your final signature is required",
+        message: "Type your full legal name and sign in the touchscreen box before submitting this inspection.",
+        sectionIndex: monthlyInspectionSections.length - 1,
+        targetId: "inspection-signoff",
+      });
       return;
     }
     setSaving(true);
@@ -215,6 +240,17 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     }
   }
 
+  function continueChecklist() {
+    if (!validationIssue) return;
+    const { sectionIndex: targetSection, targetId } = validationIssue;
+    setValidationIssue(null);
+    setSectionIndex(targetSection);
+    void persist(responses, targetSection);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }));
+  }
+
   const section = monthlyInspectionSections[sectionIndex];
   return <div className="inspection-backdrop">
     <section className="inspection-workflow" role="dialog" aria-modal="true" aria-labelledby="inspection-title">
@@ -227,10 +263,11 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       <nav className="inspection-section-tabs" aria-label="Inspection sections">
         {monthlyInspectionSections.map((item, index) => <button key={item.id} className={sectionIndex === index ? "active" : ""} onClick={() => void moveSection(index)}><span>{index + 1}</span>{item.title}</button>)}
       </nav>
+      <label className="inspection-section-select">Checklist section<select value={sectionIndex} onChange={(event) => void moveSection(Number(event.target.value))}>{monthlyInspectionSections.map((item, index) => <option value={index} key={item.id}>{index + 1}. {item.title}</option>)}</select></label>
       <div className="inspection-items">
         {section.items.map((item, index) => {
           const response = responses[item.id] || {};
-          return <article className={`inspection-item ${response.result || ""}`} key={item.id}>
+          return <article id={`inspection-item-${item.id}`} className={`inspection-item ${response.result || ""}`} key={item.id}>
             <div className="inspection-item-copy"><span>{sectionIndex + 1}.{index + 1}</span><p>{item.text}</p></div>
             <div className="inspection-result-buttons" role="group" aria-label={`Result for ${item.text}`}>
               <button className={response.result === "pass" ? "selected" : ""} onClick={() => setResult(item.id, "pass")}>✓ Pass</button>
@@ -252,7 +289,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         })}
       </div>
       <label className="inspection-overall-notes">Section or inspection notes<textarea value={overallNotes} onChange={(event) => setOverallNotes(event.target.value)} onBlur={() => void persist(responses, sectionIndex, overallNotes)} placeholder="Optional general notes for this inspection..." /></label>
-      {sectionIndex === monthlyInspectionSections.length - 1 && <section className="inspection-signoff">
+      {sectionIndex === monthlyInspectionSections.length - 1 && <section id="inspection-signoff" className="inspection-signoff">
         <div><p className="eyebrow">Required final sign-off</p><h2>Director declaration</h2><p>I confirm that I completed this inspection and that the recorded answers, exceptions and supporting evidence are accurate to the best of my knowledge.</p></div>
         <label>Type your full legal name <em>Required</em><input value={signatureName} onChange={(event) => setSignatureName(event.target.value)} onBlur={() => void persist(responses, sectionIndex, overallNotes, signatureName, signatureData)} placeholder="First and last name" /></label>
         <label>Handwritten signature <em>Required</em><SignaturePad value={signatureData} onChange={(value) => { setSignatureData(value); void persist(responses, sectionIndex, overallNotes, signatureName, value); }} /></label>
@@ -269,5 +306,15 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       stay={() => setExitConfirmationOpen(false)}
       saveAndExit={saveAndExit}
     />}
+    {validationIssue && <div className="inspection-validation-backdrop">
+      <section className="inspection-validation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="inspection-validation-title">
+        <span aria-hidden="true">!</span>
+        <p className="eyebrow">Cannot submit yet</p>
+        <h2 id="inspection-validation-title">{validationIssue.title}</h2>
+        <p>{validationIssue.message}</p>
+        <button className="primary-button" onClick={continueChecklist}>Continue with checklist</button>
+        <button className="text-button" onClick={() => setValidationIssue(null)}>Stay here</button>
+      </section>
+    </div>}
   </div>;
 }

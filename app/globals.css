@@ -625,6 +625,10 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   overflow-x: auto;
 }
 
+.inspection-section-select {
+  display: none;
+}
+
 .inspection-section-tabs button {
   display: flex;
   align-items: center;
@@ -899,20 +903,78 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   background: rgba(248, 248, 243, .97);
 }
 
+.inspection-validation-backdrop {
+  position: fixed;
+  z-index: 22000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15, 37, 69, .68);
+  backdrop-filter: blur(7px);
+}
+
+.inspection-validation-dialog {
+  width: min(470px, 100%);
+  padding: 28px;
+  border: 2px solid #17345e;
+  border-radius: 20px;
+  background: #fffdf8;
+  box-shadow: 8px 9px 0 #f4c85e;
+  text-align: center;
+}
+
+.inspection-validation-dialog > span {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff0c9;
+  color: #8a5d00;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.inspection-validation-dialog h2 {
+  margin: 5px 0 12px;
+  color: #17345e;
+  font-size: 27px;
+}
+
+.inspection-validation-dialog > p:not(.eyebrow) {
+  margin: 0 0 22px;
+  color: #637287;
+  line-height: 1.55;
+}
+
 @media (max-width: 720px) {
   .inspection-backdrop { padding: 0; }
   .inspection-workflow { max-height: 100vh; height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
-  .inspection-workflow-header, .inspection-items, .inspection-actions { padding-left: 16px; padding-right: 16px; }
-  .inspection-progress { margin-left: 16px; margin-right: 16px; }
-  .inspection-progress-copy { flex-direction: column; padding-left: 16px; padding-right: 16px; }
-  .inspection-section-tabs { padding-left: 16px; padding-right: 16px; }
+  .inspection-workflow-header { position: relative; padding: 18px 16px 13px; }
+  .inspection-workflow-header h1 { font-size: 28px; }
+  .inspection-workflow-header .eyebrow { max-width: calc(100% - 54px); font-size: 9px; letter-spacing: 1.4px; }
+  .inspection-workflow-header span { font-size: 13px; }
+  .inspection-close { width: 40px; height: 40px; font-size: 25px; }
+  .inspection-items, .inspection-actions { padding-left: 12px; padding-right: 12px; }
+  .inspection-progress { margin: 12px 16px 6px; }
+  .inspection-progress-copy { flex-direction: row; flex-wrap: wrap; padding: 0 16px 10px; font-size: 12px; }
+  .inspection-progress-copy span { width: 100%; }
+  .inspection-section-tabs { display: none; }
+  .inspection-section-select { display: grid; gap: 6px; margin: 0 16px 14px; color: #17345e; font-size: 11px; font-weight: 900; }
+  .inspection-section-select select { width: 100%; padding: 11px 12px; border: 1px solid #bac7d2; border-radius: 10px; background: white; color: #17345e; font-weight: 800; }
+  .inspection-items { gap: 8px; }
   .inspection-item { grid-template-columns: 1fr; padding: 13px; }
+  .inspection-item-copy p { font-size: 14px; }
   .inspection-result-buttons { grid-template-columns: repeat(3, 1fr); }
+  .inspection-result-buttons button { min-height: 44px; padding: 7px 4px; font-size: 13px; }
   .inspection-followup { grid-template-columns: 1fr; }
   .inspection-followup > div { grid-template-columns: 1fr; }
   .inspection-overall-notes { margin-left: 16px; margin-right: 16px; }
-  .inspection-actions { flex-direction: column-reverse; }
+  .inspection-actions { position: static; flex-direction: column-reverse; padding-top: 16px; padding-bottom: max(28px, env(safe-area-inset-bottom)); }
   .inspection-actions button { width: 100%; }
+  .inspection-validation-dialog { padding: 24px 18px; }
 }
 
 @media (min-width: 721px) and (max-width: 1050px) {
@@ -1250,4 +1312,99 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 @media (min-width: 721px) and (max-width: 1050px) {
   .inspection-signoff { grid-template-columns: 1fr 1.45fr; margin-left: 22px; margin-right: 22px; }
   .inspection-signoff > div { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+  .portal-topbar {
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    padding: 8px 12px 10px;
+  }
+
+  .portal-logo-link img {
+    width: 118px;
+  }
+
+  .account-menu {
+    justify-self: end;
+  }
+
+  .account-menu summary {
+    padding: 4px;
+  }
+
+  .user-chip > span {
+    width: 36px;
+    height: 36px;
+  }
+
+  .portal-topbar nav {
+    width: 100%;
+    gap: 6px;
+    padding: 2px 0 0;
+    overflow: visible;
+  }
+
+  .portal-topbar nav button {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 7px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .account-menu-panel {
+    position: fixed;
+    top: 68px;
+    right: 12px;
+    width: min(310px, calc(100vw - 24px));
+    max-height: calc(100vh - 85px);
+    overflow-y: auto;
+  }
+
+  .account-menu-panel button {
+    padding: 9px;
+  }
+
+  .content {
+    padding: 18px 14px 48px;
+  }
+
+  .action-row {
+    padding: 16px;
+  }
+
+  .inspection-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .inspection-feature-grid article {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    padding: 12px 9px;
+  }
+
+  .inspection-feature-grid article > span {
+    min-width: 38px;
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+  }
+
+  .inspection-feature-grid b {
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .inspection-feature-grid small {
+    font-size: 9px;
+    line-height: 1.25;
+  }
+
+  .inspection-overview {
+    padding: 16px;
+  }
 }
