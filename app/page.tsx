@@ -184,8 +184,11 @@ export default function Home() {
   }
 
   function startTour(portal: "learning" | "inspection" | "admin") {
+    document.querySelectorAll("details.account-menu[open]").forEach((menu) => menu.removeAttribute("open"));
+    setView(portal === "learning" ? "dashboard" : portal === "inspection" ? "director" : "admin");
     setTourPortal(portal);
-    setTourOpen(true);
+    setTourOpen(false);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => setTourOpen(true)));
   }
 
   async function emailLogin(event: React.FormEvent) {
@@ -275,12 +278,12 @@ export default function Home() {
         <header className="portal-topbar">
           <Link className="portal-logo-link" href="/" onClick={() => setView(activePortal === "inspection" ? "director" : activePortal === "admin" ? "admin" : "dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
           <nav aria-label="Portal">
-            {activePortal === "learning" && <><button data-tour="dashboard-tab" data-tooltip="Your progress and next required task" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" data-tooltip="Open and continue your assigned modules" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" data-tooltip="Official policies and course references" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
+            {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
             {activePortal === "inspection" && <><span className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
             {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
           </nav>
           <details className="account-menu">
-            <summary className="user-chip" data-tour="profile-menu" data-tooltip="Profile, certificate, walkthrough and sign out" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></summary>
+            <summary className="user-chip" data-tour="profile-menu" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></summary>
             <div className="account-menu-panel">
               {canInspect && <button onClick={() => setPortalMode("chooser")}><span>⇄</span><div><b>Switch portal</b><small>Learning, inspections or admin</small></div></button>}
               <button onClick={() => setEditProfileOpen(true)}><span>✎</span><div><b>Edit profile</b><small>Name and certificate details</small></div></button>
@@ -362,14 +365,17 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
     const place = () => {
       const rect = target.getBoundingClientRect();
       const width = Math.min(430, window.innerWidth - 32);
-      const below = rect.bottom + 18;
-      const top = below + 410 < window.innerHeight ? below : Math.max(16, rect.top - 428);
       const left = Math.min(Math.max(16, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 16);
-      setPosition({ top, left, arrow: top > rect.bottom ? "top" : "bottom" });
+      setPosition({ top: rect.bottom + 18, left, arrow: "top" });
     };
-    place();
+    if (!target.closest(".portal-topbar")) {
+      target.scrollIntoView({ block: "start" });
+      window.scrollBy({ top: -125 });
+    }
+    const placementTimer = window.setTimeout(place, 80);
     window.addEventListener("resize", place);
     return () => {
+      window.clearTimeout(placementTimer);
       target.classList.remove("tour-highlight");
       window.removeEventListener("resize", place);
     };

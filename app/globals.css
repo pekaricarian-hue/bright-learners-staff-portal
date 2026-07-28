@@ -173,49 +173,7 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   box-shadow: 0 14px 28px #152d4f12;
 }
 
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  z-index: 90;
-  left: 50%;
-  top: calc(100% + 11px);
-  width: max-content;
-  max-width: 240px;
-  padding: 9px 11px;
-  border-radius: 9px;
-  background: #142f55;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.35;
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, -4px);
-  transition: opacity .16s ease, transform .16s ease;
-}
-
-[data-tooltip]:hover::after,
-[data-tooltip]:focus-visible::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-.account-menu summary::after {
-  left: auto;
-  right: 0;
-  transform: translateY(-4px);
-}
-
-.account-menu summary:hover::after,
-.account-menu summary:focus-visible::after {
-  transform: translateY(0);
-}
-
 @media (max-width: 700px) {
-  [data-tooltip]::after {
-    display: none;
-  }
-
   .guided-tour.anchored {
     left: 16px !important;
   }
