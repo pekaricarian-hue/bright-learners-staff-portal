@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   GoogleAuthProvider,
@@ -13,18 +14,34 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase";
 
-type View = "employee" | "director" | "admin";
+type View = "dashboard" | "employee" | "resources" | "director" | "admin";
 
 const modules = [
-  { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "☺" },
-  { title: "Healthy children, healthy centre", eyebrow: "Illness, hygiene & outbreaks", time: "18 min", colour: "blue", icon: "✚" },
+  { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "⌂" },
+  { title: "Healthy children, healthy centre", eyebrow: "Illness, hygiene & outbreaks", time: "18 min", colour: "blue", icon: "+" },
   { title: "Clean toys, safer play", eyebrow: "Cleaning & disinfection", time: "16 min", colour: "rose", icon: "✦" },
-  { title: "Food, allergies & safe meals", eyebrow: "Every bite handled safely", time: "14 min", colour: "green", icon: "♨" },
+  { title: "Food, allergies & safe meals", eyebrow: "Every bite handled safely", time: "14 min", colour: "green", icon: "◇" },
   { title: "Diapering, sleep & daily care", eyebrow: "Safe routines", time: "18 min", colour: "lavender", icon: "☾" },
   { title: "Emergencies & safe spaces", eyebrow: "Ready when it matters", time: "20 min", colour: "orange", icon: "!" },
 ];
 
 const locations = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
+const directorLocations: Record<string, string> = {
+  "sylvandaycare@gmail.com": "Sylvan Lake",
+  "sundance@brightlearnersacademy.net": "Sundance",
+  "midnapore@brightlearnersacademy.net": "Midnapore",
+  "millwoods@brightlearnersacademy.net": "Millwoods",
+  "willowgrove@brightlearnersacademy.net": "Willowgrove",
+};
+const executiveEmails = new Set([
+  "pekaric.arian@gmail.com",
+  "vick@brightlearnersacademy.net",
+  "darin@brightlearnersacademy.net",
+  "imroz@brightlearnersacademy.net",
+  "ruby@brightlearnersacademy.net",
+  "admin@brightlearnersacademy.net",
+  "payroll@brightlearnersacademy.net",
+]);
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -32,12 +49,16 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [view, setView] = useState<View>("employee");
+  const [view, setView] = useState<View>("dashboard");
   const [location, setLocation] = useState("Sundance");
-  const isOwner = user?.email?.toLowerCase() === "pekaric.arian@gmail.com";
+  const signedInEmail = user?.email?.toLowerCase() ?? "";
+  const canAdmin = executiveEmails.has(signedInEmail);
+  const canInspect = canAdmin || Boolean(directorLocations[signedInEmail]);
 
   useEffect(() => onAuthStateChanged(auth, (next) => {
     setUser(next);
+    const nextEmail = next?.email?.toLowerCase() ?? "";
+    if (directorLocations[nextEmail]) setLocation(directorLocations[nextEmail]);
     setLoading(false);
   }), []);
 
@@ -79,8 +100,7 @@ export default function Home() {
         <div className="animated-doodles" aria-hidden="true" />
         <header className="landing-nav">
           <a className="brand" href="https://brightlearnersacademy.net/" aria-label="Bright Learners Academy home">
-            <span className="brand-mark">B</span>
-            <span>Bright Learners<br /><small>Staff Learning</small></span>
+            <Image className="brand-logo" src="/bright-learners-logo.png" alt="Bright Learners Academy" width={250} height={122} priority />
           </a>
           <span className="secure-pill">Private staff portal</span>
         </header>
@@ -109,28 +129,56 @@ export default function Home() {
 
   return (
     <main className="portal">
-      <aside className="sidebar">
-        <Link className="brand compact" href="/"><span className="brand-mark">B</span><span>Bright Learners<small>Staff Learning</small></span></Link>
-        <nav aria-label="Portal">
-          <button className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>⌂ My learning</button>
-          {isOwner && <button className={view === "director" ? "active" : ""} onClick={() => setView("director")}>✓ Inspections</button>}
-          {isOwner && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>⚙ Admin</button>}
-        </nav>
-        <div className="sidebar-note"><span>★</span><p><b>Nice work!</b><br />You’ve earned 120 points.</p></div>
-        <button className="signout" onClick={() => signOut(auth)}>Sign out</button>
-      </aside>
       <section className="workspace">
-        <header className="workspace-header">
-          <div><p className="eyebrow">Bright Learners Academy</p><h1>{view === "employee" ? "My learning" : view === "director" ? "Facility inspections" : "Administration"}</h1></div>
+        <header className="portal-topbar">
+          <Link className="portal-logo-link" href="/" onClick={() => setView("dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
+          <nav aria-label="Portal">
+            <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button>
+            <button className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button>
+            <button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button>
+            {canInspect && <button className={view === "director" ? "active" : ""} onClick={() => setView("director")}>Inspections</button>}
+            {canAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Admin</button>}
+          </nav>
           <div className="user-chip"><span>{(user.displayName || user.email || "Staff")[0].toUpperCase()}</span><div><b>{user.displayName || "Team member"}</b><small>{user.email}</small></div></div>
+          <button className="topbar-signout" onClick={() => signOut(auth)}>Sign out</button>
         </header>
 
+        {view === "dashboard" && <DashboardView name={user.displayName || "Team member"} canInspect={canInspect} setView={setView} />}
         {view === "employee" && <EmployeeView />}
+        {view === "resources" && <ResourcesView />}
         {view === "director" && <DirectorView location={location} setLocation={setLocation} />}
         {view === "admin" && <AdminView />}
       </section>
     </main>
   );
+}
+
+function DashboardView({ name, canInspect, setView }: { name: string; canInspect: boolean; setView: (view: View) => void }) {
+  return <div className="content dashboard-content">
+    <section className="dashboard-greeting"><div><p className="eyebrow">Staff learning portal</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your onboarding, find a policy, or complete today’s facility work.</p></div><div className="dashboard-sun" aria-hidden="true">☼</div></section>
+    <div className="dashboard-stat-grid">
+      <article className="pastel-blue"><span className="line-symbol">✓</span><b>1 of 6</b><strong>Modules complete</strong><small>Your onboarding progress</small></article>
+      <article className="pastel-green"><span className="line-symbol">◎</span><b>100%</b><strong>Required pass mark</strong><small>Every knowledge check</small></article>
+      <article className="pastel-yellow"><span className="line-symbol">↗</span><b>120</b><strong>Learning points</strong><small>Earned so far</small></article>
+      <article className="pastel-lilac"><span className="line-symbol">◷</span><b>12 min</b><strong>Next lesson</strong><small>Welcome to Bright Learners</small></article>
+    </div>
+    <div className="dashboard-columns">
+      <section className="continue-panel"><div><p className="eyebrow">Continue learning</p><h2>Welcome to Bright Learners</h2><p>Meet the organization, understand your role, and learn the standards that guide every academy.</p><div className="dashboard-progress"><i /></div><small>1 of 8 lesson slides viewed</small></div><button className="brand-button" onClick={() => setView("employee")}>Continue module →</button></section>
+      <section className="dashboard-links"><p className="eyebrow">Quick access</p><button onClick={() => setView("resources")}><span>?</span><div><b>Policies & resources</b><small>Official documents and quick guides</small></div>→</button>{canInspect && <button onClick={() => setView("director")}><span>✓</span><div><b>Facility inspections</b><small>Start or continue a checklist</small></div>→</button>}<button onClick={() => setView("employee")}><span>☆</span><div><b>My certificates</b><small>Completed training records</small></div>→</button></section>
+    </div>
+  </div>;
+}
+
+function ResourcesView() {
+  const resources = [
+    ["Health & safety", "AHS childcare health and safety guidance", "AB"],
+    ["Cleaning & disinfecting", "Toy, surface and equipment procedures", "AB"],
+    ["Diapering procedure", "Step-by-step reference poster", "AB"],
+    ["Licensing handbook", "Facility-based child care requirements", "AB"],
+    ["Communicable disease", "School and child care centre guidance", "SK"],
+    ["Bright Learners orientation", "Company expectations and program philosophy", "BLA"],
+  ];
+  return <div className="content resources-content"><div className="page-intro"><p className="eyebrow">Reference library</p><h1>Resources</h1><p>Find the official policy or Bright Learners guide you need without searching through email folders.</p></div><div className="resource-grid">{resources.map(([title, description, province], index) => <article key={title}><span className={`resource-icon resource-${index + 1}`}>{index + 1}</span><small>{province} resource</small><h2>{title}</h2><p>{description}</p><button>Open resource →</button></article>)}</div></div>;
 }
 
 function EmployeeView() {
@@ -165,7 +213,7 @@ function EmployeeView() {
           const available = index <= completedCount;
           return <article className={`professional-module ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
             <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); setQuizMessage(""); setAnswer(""); }}>
-              <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span className="doodle-mark">{String(index + 1).padStart(2, "0")}</span><small>{module.eyebrow}</small></div>
+              <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span className="program-icon">{module.icon}</span><small>{module.eyebrow}</small></div>
               <div className="module-card-top"><span className={`module-number ${module.colour}`}>{complete ? "✓" : index + 1}</span><span className="module-time">{module.time}</span></div>
               <div className="module-card-main"><small>Module {index + 1}</small><h3>{module.title}</h3></div>
               <div className="module-hover-description"><p>{module.eyebrow}</p><span>{complete ? "Completed • Review anytime" : available ? "Ready to continue" : "Complete the previous module to unlock"}</span></div>
