@@ -275,12 +275,12 @@ export default function Home() {
         <header className="portal-topbar">
           <Link className="portal-logo-link" href="/" onClick={() => setView(activePortal === "inspection" ? "director" : activePortal === "admin" ? "admin" : "dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
           <nav aria-label="Portal">
-            {activePortal === "learning" && <><button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
+            {activePortal === "learning" && <><button data-tour="dashboard-tab" data-tooltip="Your progress and next required task" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" data-tooltip="Open and continue your assigned modules" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" data-tooltip="Official policies and course references" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
             {activePortal === "inspection" && <><span className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
             {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
           </nav>
           <details className="account-menu">
-            <summary className="user-chip" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div><i>⌄</i></summary>
+            <summary className="user-chip" data-tour="profile-menu" data-tooltip="Profile, certificate, walkthrough and sign out" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></summary>
             <div className="account-menu-panel">
               {canInspect && <button onClick={() => setPortalMode("chooser")}><span>⇄</span><div><b>Switch portal</b><small>Learning, inspections or admin</small></div></button>}
               <button onClick={() => setEditProfileOpen(true)}><span>✎</span><div><b>Edit profile</b><small>Name and certificate details</small></div></button>
@@ -329,27 +329,52 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
   const [step, setStep] = useState(0);
   const tours = {
     learning: [
-      ["Welcome to your dashboard", "This is your personal starting point. It shows your assigned academy, provincial course, progress and next required lesson."],
-      ["My Learning", "Open your required modules here. Complete them in order, review every slide and pass each knowledge check at 100%."],
-      ["Resources", "Find the Bright Learners policies and official provincial references used throughout your course."],
-      ["Progress and certificate", "Your progress saves to your account. When every module is complete, View certificate will provide the internal PDF and module checklist."],
+      ["Your module progress", "This card shows how many of your eight assigned modules are complete. Results save to your own account.", "[data-tour='module-progress']"],
+      ["Dashboard", "Return here to see your assigned course, progress, next lesson and anything that needs attention.", "[data-tour='dashboard-tab']"],
+      ["My Learning", "Open your modules here. Select an available card, choose Start module, read each slide and pass the knowledge check at 100%.", "[data-tour='learning-tab']"],
+      ["Resources", "Open the Bright Learners policies and official provincial references used throughout your course.", "[data-tour='resources-tab']"],
+      ["Your profile", "Open this menu to edit your legal certificate name, view certificate status, restart this walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
     inspection: [
-      ["Director inspection portal", "This workspace is separate from learning. It holds facility checklists and records for the academy selected on each inspection."],
-      ["Start or resume an inspection", "Open the required checklist, save an unfinished draft and continue it later without losing responses."],
-      ["Document every exception", "Failed items require a note. Add corrective actions and photographs when evidence is useful."],
-      ["Review and submit", "Review all answers before submitting. The final record is timestamped, locked and sent to administration as a downloadable report."],
+      ["Director inspection portal", "This workspace is separate from learning. It holds facility checklists and records for the academy selected on each inspection.", "[data-tour='inspection-start']"],
+      ["Start or resume an inspection", "Open the required checklist, save an unfinished draft and continue it later without losing responses.", "[data-tour='inspection-start']"],
+      ["Document every exception", "Failed items require a note. Add corrective actions and photographs when evidence is useful.", "[data-tour='inspection-records']"],
+      ["Your profile", "Use this menu to switch portals, edit your name, restart the walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
     admin: [
-      ["Administration console", "This workspace is restricted to the administrator and technical owner."],
-      ["Staff and access", "Manage employee, director and administrator access, academy assignment and provincial course assignment."],
-      ["Courses and inspections", "Edit module content, quiz questions, source references, checklist items, deadlines and renewal schedules."],
-      ["Records and reporting", "Track overdue work and download certificates, answer records, inspection reports, notes and photographs."],
+      ["Administration console", "This workspace is restricted to the administrator and technical owner.", "[data-tour='admin-overview']"],
+      ["Staff and access", "Manage employee and director access, academy assignment and provincial course assignment.", "[data-tour='admin-overview']"],
+      ["Courses and inspections", "Edit module content, quiz questions, source references, checklist items, deadlines and renewal schedules.", "[data-tour='admin-actions']"],
+      ["Your profile", "Use this menu to switch portals, view certificate status, restart the walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
   };
   const steps = tours[portal];
   const current = steps[step];
-  return <div className="tour-backdrop" role="presentation"><section className="guided-tour" role="dialog" aria-modal="true" aria-labelledby="tour-title"><button className="tour-skip" onClick={close}>Skip tour</button><div className={`tour-symbol tour-${portal}`}>{portal === "learning" ? "⌂" : portal === "inspection" ? "✓" : "A"}</div><p className="eyebrow">{portal === "learning" ? "Employee learning" : portal === "inspection" ? "Director inspections" : "Administration"} · Step {step + 1} of {steps.length}</p><h2 id="tour-title">{current[0]}</h2><p>{current[1]}</p>{portal === "admin" && !canAdmin && <small>Administration features are not available for your account.</small>}<div className="tour-dots">{steps.map((_, index) => <i key={index} className={index === step ? "active" : ""} />)}</div><footer><button className="outline-button" disabled={step === 0} onClick={() => setStep((value) => Math.max(0, value - 1))}>Back</button>{step < steps.length - 1 ? <button className="brand-button" onClick={() => setStep((value) => value + 1)}>Next →</button> : <button className="brand-button" onClick={finish}>Finish tour</button>}</footer></section></div>;
+  const [position, setPosition] = useState({ top: 120, left: 24, arrow: "top" });
+  useEffect(() => {
+    const target = document.querySelector(current[2]) as HTMLElement | null;
+    document.querySelectorAll(".tour-highlight").forEach((item) => item.classList.remove("tour-highlight"));
+    if (!target) {
+      setPosition({ top: Math.max(90, window.innerHeight / 2 - 220), left: Math.max(20, window.innerWidth / 2 - 240), arrow: "none" });
+      return;
+    }
+    target.classList.add("tour-highlight");
+    const place = () => {
+      const rect = target.getBoundingClientRect();
+      const width = Math.min(430, window.innerWidth - 32);
+      const below = rect.bottom + 18;
+      const top = below + 410 < window.innerHeight ? below : Math.max(16, rect.top - 428);
+      const left = Math.min(Math.max(16, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 16);
+      setPosition({ top, left, arrow: top > rect.bottom ? "top" : "bottom" });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => {
+      target.classList.remove("tour-highlight");
+      window.removeEventListener("resize", place);
+    };
+  }, [portal, step]);
+  return <div className="tour-backdrop anchored" role="presentation"><section className={`guided-tour anchored arrow-${position.arrow}`} style={{ top: position.top, left: position.left }} role="dialog" aria-modal="true" aria-labelledby="tour-title"><button className="tour-skip" onClick={close}>Skip tour</button><p className="eyebrow">{portal === "learning" ? "Employee learning" : portal === "inspection" ? "Director inspections" : "Administration"} · Step {step + 1} of {steps.length}</p><h2 id="tour-title">{current[0]}</h2><p>{current[1]}</p>{portal === "admin" && !canAdmin && <small>Administration features are not available for your account.</small>}<div className="tour-dots">{steps.map((_, index) => <i key={index} className={index === step ? "active" : ""} />)}</div><footer><button className="outline-button" disabled={step === 0} onClick={() => setStep((value) => Math.max(0, value - 1))}>Back</button>{step < steps.length - 1 ? <button className="brand-button" onClick={() => setStep((value) => value + 1)}>Next →</button> : <button className="brand-button" onClick={finish}>Finish tour</button>}</footer></section></div>;
 }
 
 function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; canAdmin: boolean; choose: (portal: PortalMode) => void; signOutUser: () => void }) {
@@ -360,7 +385,7 @@ function DashboardView({ name, location, province, setView }: { name: string; lo
   return <div className="content dashboard-content">
     <section className="dashboard-greeting"><div><p className="eyebrow">{location} • {province === "SK" ? "Saskatchewan" : "Alberta"} course</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your assigned onboarding or find a policy for your academy.</p></div><div className="dashboard-sun" aria-hidden="true">☼</div></section>
     <div className="dashboard-stat-grid">
-      <article className="pastel-blue"><span className="line-symbol">✓</span><b>8</b><strong>Required modules</strong><small>Your saved progress appears in My Learning</small></article>
+      <article data-tour="module-progress" className="pastel-blue"><span className="line-symbol">✓</span><b>8</b><strong>Required modules</strong><small>Your saved progress appears in My Learning</small></article>
       <article className="pastel-green"><span className="line-symbol">◎</span><b>100%</b><strong>Required pass mark</strong><small>Every knowledge check</small></article>
       <article className="pastel-yellow"><span className="line-symbol">↗</span><b>120</b><strong>Learning points</strong><small>Earned so far</small></article>
       <article className="pastel-lilac"><span className="line-symbol">◷</span><b>12 min</b><strong>Next lesson</strong><small>Welcome to Bright Learners</small></article>
@@ -778,9 +803,9 @@ function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: str
 
 function DirectorView({ location, setLocation }: { location: string; setLocation: (v: string) => void }) {
   return <div className="content">
-    <section className="action-row"><div><p className="eyebrow">Authorized location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select></div><button className="primary-button">＋ Start monthly inspection</button></section>
+    <section data-tour="inspection-start" className="action-row"><div><p className="eyebrow">Authorized location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select></div><button className="primary-button">＋ Start monthly inspection</button></section>
     <div className="stat-grid"><article><span>✓</span><div><b>4</b><small>Completed this month</small></div></article><article><span>!</span><div><b>2</b><small>Open follow-ups</small></div></article><article><span>◷</span><div><b>Jul 18</b><small>Last inspection</small></div></article></div>
-    <section className="table-card"><div className="section-heading"><div><p className="eyebrow">Recent activity</p><h2>{location} inspections</h2></div><button className="outline-button">Download records</button></div>
+    <section data-tour="inspection-records" className="table-card"><div className="section-heading"><div><p className="eyebrow">Recent activity</p><h2>{location} inspections</h2></div><button className="outline-button">Download records</button></div>
       <div className="record"><span className="record-status complete">✓</span><div><b>Monthly facility audit</b><small>Completed by Margaret Ferriss • July 18, 2026</small></div><strong>100%</strong><button>View report</button></div>
       <div className="record"><span className="record-status followup">!</span><div><b>Outdoor playspace check</b><small>2 items require follow-up • July 12, 2026</small></div><strong>86%</strong><button>Continue</button></div>
     </section>
@@ -790,10 +815,10 @@ function DirectorView({ location, setLocation }: { location: string; setLocation
 
 function AdminView() {
   return <div className="content">
-    <div className="stat-grid admin-stats"><article><span>☺</span><div><b>47</b><small>Active staff</small></div></article><article><span>✓</span><div><b>82%</b><small>Training complete</small></div></article><article><span>⌂</span><div><b>5</b><small>Academy locations</small></div></article></div>
+    <div data-tour="admin-overview" className="stat-grid admin-stats"><article><span>☺</span><div><b>47</b><small>Active staff</small></div></article><article><span>✓</span><div><b>82%</b><small>Training complete</small></div></article><article><span>⌂</span><div><b>5</b><small>Academy locations</small></div></article></div>
     <div className="admin-grid">
       <section className="table-card"><p className="eyebrow">Needs attention</p><h2>Compliance queue</h2>{["3 overdue course assignments","2 inspection follow-ups","5 certificates renew soon"].map((x,i)=><div className="queue" key={x}><span>{i+1}</span><b>{x}</b><button>Review</button></div>)}</section>
-      <section className="quick-card"><p className="handwritten">Quick actions</p><button>＋ Add staff account</button><button>＋ Create course module</button><button>＋ Edit inspection checklist</button><button>↗ Export compliance report</button></section>
+      <section data-tour="admin-actions" className="quick-card"><p className="handwritten">Quick actions</p><button>＋ Add staff account</button><button>＋ Create course module</button><button>＋ Edit inspection checklist</button><button>↗ Export compliance report</button></section>
     </div>
   </div>;
 }
