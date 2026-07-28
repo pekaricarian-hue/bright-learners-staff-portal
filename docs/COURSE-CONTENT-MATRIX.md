@@ -21,14 +21,14 @@ Target: 8 modules, 115 teaching slides, 80 scored questions, 100% required.
 
 | Module | Target slides | Questions | Required coverage | Primary sources |
 |---|---:|---:|---|---|
-| 1. Welcome to Bright Learners | 12 | 8 | Organization, mission, educator role, professional conduct, family communication, confidentiality, first-day practice | Bright Learners Orientation, May 2026, slides 1-15 and 56-60 |
+| 1. Welcome to Bright Learners | 12 | 8 | Organization, mission, educator role, professional conduct, family communication, confidentiality, first-day practice | Bright Learners Orientation, May 2026, slides 1-15 and 56-60; Final Staff Handbook shared policies |
 | 2. Curriculum and learning through play | 14 | 10 | FLIGHT, emergent curriculum, Reggio Emilia, observation, planning, documentation, Lillio, natural and loose materials | Bright Learners Orientation, slides 16-39; AHS Natural Materials and Loose Parts guidance |
-| 3. Active supervision and safe spaces | 15 | 10 | Active supervision, ratios, group sizes, attendance, transitions, headcounts, field trips, hazards, indoor and outdoor playspaces | Alberta Regulation; Alberta Licensing Handbook; Bright Learners Orientation, slides 40-47; AHS Playspace guidance |
+| 3. Active supervision and safe spaces | 15 | 10 | Active supervision, ratios, group sizes, attendance, transitions, headcounts, field trips, hazards, indoor and outdoor playspaces | Alberta Regulation; Alberta Licensing Handbook; Final Staff Handbook shared policies; Bright Learners Orientation, slides 40-47; AHS Playspace guidance |
 | 4. Health, illness and outbreaks | 15 | 10 | Daily health observation, illness response, separation with supervision, pickup, records, exclusion, reporting, outbreak response, enhanced cleaning | AHS Health and Safety Guide, April 2025; AHS GI Outbreak cleaning guidance |
 | 5. Cleaning, sanitizing and toy safety | 16 | 12 | Cleaning versus sanitizing/disinfecting, product labels, concentration, contact time, food-contact surfaces, mouthed toys, schedules, bedding, bodily fluids | AHS Health and Safety Guide; AHS Cleaning and Sanitizing poster; AHS GI Outbreak guidance |
 | 6. Food, allergies and safe meals | 14 | 10 | Allergies, emergency plans, food from home, temperature control, thermometers, family-style service, food-contact surfaces, cross-contamination | AHS Health and Safety Guide; Food From Home; Family-Style Meal Service; Cleaning and Sanitizing poster |
-| 7. Diapering, medication, sleep and daily care | 15 | 10 | Diapering sequence, handwashing, toileting, medication authorization and records, storage, crib checks, sleep supervision, laundry | Alberta Regulation; Licensing Handbook; AHS Diapering Poster; AHS Crib Safety Checklist |
-| 8. Guidance, incidents and emergencies | 14 | 10 | Positive guidance, prohibited practices, biting, incident response, serious incidents, duty to report, evacuation, emergency attendance and reunification | Alberta Act and Regulation; Licensing Handbook; Bright Learners Orientation, slides 48-55 |
+| 7. Diapering, medication, sleep and daily care | 15 | 10 | Diapering sequence, handwashing, toileting, medication authorization and records, storage, crib checks, sleep supervision, laundry | Alberta Regulation; Licensing Handbook; Final Staff Handbook shared policies; AHS Diapering Poster; AHS Crib Safety Checklist |
+| 8. Guidance, incidents and emergencies | 14 | 10 | Positive guidance, prohibited practices, biting, incident response, serious incidents, duty to report, evacuation, emergency attendance and reunification | Alberta Act and Regulation; Licensing Handbook; Final Staff Handbook shared policies; Bright Learners Orientation, slides 48-55 |
 
 ## Saskatchewan course
 

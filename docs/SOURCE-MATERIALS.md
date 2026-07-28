@@ -9,13 +9,14 @@ This file keeps the project recoverable if the original Codex conversation is un
 3. Bright Learners orientation, handbooks, menus, and internal procedures supplement official requirements.
 4. If an internal document conflicts with an official requirement, the official requirement controls and the conflict must be flagged for administration.
 5. Verbal guidance must be labelled as verbal, dated when possible, and kept separate from written legal requirements.
+6. The final Staff Handbook is an organization-wide source only where its wording is not province-specific. Provincial laws, ratios, licensing procedures and health requirements remain separated by assigned location.
 
 ## Bright Learners internal sources
 
 - `C:\Users\arian\Downloads\Orientation PPT - May 2026.pptx` - 60-slide company orientation used for both provinces.
 - `C:\Users\arian\Downloads\Revised -Monthly Audit.zip` - six photographed monthly-audit pages for director inspections.
 - `C:\Users\arian\Downloads\WILLOW PARENT HANDBOOK (1).pdf` - current Willowgrove policies.
-- `C:\Users\arian\Downloads\UPDATED FINAL STAFF HANDBOOK 3.0.pdf` - final Saskatchewan staff handbook, dated May 2026, 48 pages. A recovery copy is stored at `C:\Users\arian\Documents\Codex\2026-07-26\whe\sources\saskatchewan\Bright-Learners-Academy-Staff-Handbook-May-2026.pdf`.
+- `C:\Users\arian\Downloads\UPDATED FINAL STAFF HANDBOOK 3.0.pdf` - final Bright Learners Academy staff handbook, dated May 2026, 48 pages. Shared company policies apply to both Alberta and Saskatchewan. Saskatchewan-specific ratios, ECAS references, employment standards and provincial procedures apply only to Saskatchewan. A recovery copy is stored at `C:\Users\arian\Documents\Codex\2026-07-26\whe\sources\shared\Bright-Learners-Academy-Staff-Handbook-May-2026.pdf`.
 - `C:\Users\arian\Downloads\Revised Menu.pdf` - Willowgrove four-week onsite food-service menu.
 - `C:\Users\arian\Downloads\WILLOWGROVE REPORTS-20260728T003310Z-1-001.zip` - Willowgrove fire-safety and Saskatchewan Health Authority reports.
 
