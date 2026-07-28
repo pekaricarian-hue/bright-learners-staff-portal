@@ -23,7 +23,7 @@ import InspectionWorkflow from "./inspection-workflow";
 import ExitConfirmation from "./exit-confirmation";
 import InspectionReports from "./inspection-reports";
 
-type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin";
+type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-inspections";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 type Province = "AB" | "SK";
 type StaffRole = "employee" | "director" | "admin" | "owner";
@@ -336,7 +336,7 @@ export default function Home() {
           <nav aria-label="Portal">
             {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
             {activePortal === "inspection" && <><button data-tour="inspection-dashboard-tab" className={view === "director" ? "active" : ""} onClick={() => setView("director")}>Inspection dashboard</button><button data-tour="inspection-reports-tab" className={view === "inspection-reports" ? "active" : ""} onClick={() => setView("inspection-reports")}>Reports & drafts</button></>}
-            {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
+            {activePortal === "admin" && <><button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Organization overview</button><button data-tour="admin-inspection-records" className={view === "admin-inspections" ? "active" : ""} onClick={() => setView("admin-inspections")}>Inspection records</button></>}
           </nav>
           <details className="account-menu">
             <summary className="user-chip" data-tour="profile-menu" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></summary>
@@ -356,7 +356,8 @@ export default function Home() {
         {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
         {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
         {activePortal === "inspection" && view === "inspection-reports" && <InspectionReports userId={user.uid} directorName={profile.displayName} />}
-        {activePortal === "admin" && <AdminView />}
+        {activePortal === "admin" && view === "admin" && <AdminView />}
+        {activePortal === "admin" && view === "admin-inspections" && <InspectionReports userId={user.uid} directorName={profile.displayName} adminMode />}
       </section>
       {editProfileOpen && <EditProfile profile={profile} save={updateProfile} close={() => setEditProfileOpen(false)} />}
       {passwordOpen && <PasswordResetDialog email={profile.email} close={() => setPasswordOpen(false)} />}
@@ -501,7 +502,7 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
     admin: [
       ["Administration console", "This workspace is restricted to the administrator and technical owner.", "[data-tour='admin-overview']"],
       ["Staff and access", "Manage employee and director access, academy assignment and provincial course assignment.", "[data-tour='admin-overview']"],
-      ["Courses and inspections", "Edit module content, quiz questions, source references, checklist items, deadlines and renewal schedules.", "[data-tour='admin-actions']"],
+      ["Inspection records", "Review drafts and completed facility inspections across every Bright Learners location.", "[data-tour='admin-inspection-records']"],
       ["Your profile", "Use this menu to switch portals, view certificate status, restart the walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
   };

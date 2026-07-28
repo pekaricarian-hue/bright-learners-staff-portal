@@ -184,6 +184,9 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         overallNotes,
         answeredCount: allItems.length,
         failedCount: failed,
+        notificationStatus: "pending",
+        notificationRecipient: "admin@brightlearnersacademy.net",
+        notificationType: "inspection-completed",
         completedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
+import { jsPDF } from "jspdf";
 import { db } from "./firebase";
 import InspectionWorkflow from "./inspection-workflow";
 import { monthlyInspectionSections } from "./inspection-data";
@@ -33,6 +34,7 @@ type InspectionRecord = {
 type Props = {
   userId: string;
   directorName: string;
+  adminMode?: boolean;
 };
 
 const totalItems = monthlyInspectionSections.reduce((sum, section) => sum + section.items.length, 0);
@@ -46,13 +48,15 @@ function formattedDate(value?: { toDate?: () => Date }) {
   return date ? new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" }).format(date) : "Not available";
 }
 
-export default function InspectionReports({ userId, directorName }: Props) {
+export default function InspectionReports({ userId, directorName, adminMode = false }: Props) {
   const [records, setRecords] = useState<InspectionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [activeDraft, setActiveDraft] = useState<InspectionRecord | null>(null);
   const [activeReport, setActiveReport] = useState<InspectionRecord | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [locationFilter, setLocationFilter] = useState("All locations");
+  const [generatingPdf, setGeneratingPdf] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -60,7 +64,9 @@ export default function InspectionReports({ userId, directorName }: Props) {
       setLoading(true);
       setLoadError("");
       try {
-        const snapshot = await getDocs(query(collection(db, "inspections"), where("directorId", "==", userId)));
+        const snapshot = adminMode
+          ? await getDocs(collection(db, "inspections"))
+          : await getDocs(query(collection(db, "inspections"), where("directorId", "==", userId)));
         const next = snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as InspectionRecord)).sort((a, b) => {
           const aDate = dateValue(a.completedAt || a.updatedAt || a.startedAt)?.getTime() || 0;
           const bDate = dateValue(b.completedAt || b.updatedAt || b.startedAt)?.getTime() || 0;
@@ -75,13 +81,25 @@ export default function InspectionReports({ userId, directorName }: Props) {
     }
     void load();
     return () => { active = false; };
-  }, [refreshKey, userId]);
+  }, [adminMode, refreshKey, userId]);
 
-  const drafts = records.filter((record) => record.status === "draft");
-  const completed = records.filter((record) => record.status === "completed");
+  const availableLocations = Array.from(new Set(records.map((record) => record.location))).sort();
+  const visibleRecords = locationFilter === "All locations" ? records : records.filter((record) => record.location === locationFilter);
+  const drafts = visibleRecords.filter((record) => record.status === "draft");
+  const completed = visibleRecords.filter((record) => record.status === "completed");
+
+  async function downloadPdf(record: InspectionRecord) {
+    setGeneratingPdf(record.id);
+    try {
+      await createInspectionPdf(record);
+    } finally {
+      setGeneratingPdf("");
+    }
+  }
 
   return <div className="content inspection-records-page">
-    <div className="page-intro"><p className="eyebrow">Director records</p><h1>Reports & drafts</h1><p>Resume unfinished work or review completed inspection history from your profile.</p></div>
+    <div className="page-intro"><p className="eyebrow">{adminMode ? "Organization compliance" : "Director records"}</p><h1>{adminMode ? "All inspection records" : "Reports & drafts"}</h1><p>{adminMode ? "Review drafts and completed inspections across every Bright Learners location." : "Resume unfinished work or review completed inspection history from your profile."}</p></div>
+    {adminMode && <label className="inspection-location-filter">Location<select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}><option>All locations</option>{availableLocations.map((location) => <option key={location}>{location}</option>)}</select></label>}
     <div className="inspection-record-summary">
       <article><b>{drafts.length}</b><span>Saved draft{drafts.length === 1 ? "" : "s"}</span></article>
       <article><b>{completed.length}</b><span>Completed inspection{completed.length === 1 ? "" : "s"}</span></article>
@@ -96,7 +114,7 @@ export default function InspectionReports({ userId, directorName }: Props) {
           <article className="inspection-history-row" key={record.id}>
             <span className="inspection-history-status draft">Draft</span>
             <div><b>{record.location} monthly inspection</b><small>Last saved {formattedDate(record.updatedAt)} · {record.answeredCount || 0} of {totalItems} answered</small></div>
-            <button className="primary-button" onClick={() => setActiveDraft(record)}>Resume</button>
+            {adminMode ? <span className="inspection-admin-readonly">Director draft</span> : <button className="primary-button" onClick={() => setActiveDraft(record)}>Resume</button>}
           </article>
         )}
       </section>
@@ -106,17 +124,17 @@ export default function InspectionReports({ userId, directorName }: Props) {
           <article className="inspection-history-row" key={record.id}>
             <span className="inspection-history-status complete">Complete</span>
             <div><b>{record.location} monthly inspection</b><small>Completed {formattedDate(record.completedAt)} by {record.directorName || directorName} · {record.failedCount || 0} follow-ups</small></div>
-            <button className="outline-button" onClick={() => setActiveReport(record)}>View report</button>
+            <div className="inspection-history-actions"><button className="outline-button" onClick={() => setActiveReport(record)}>View</button><button className="primary-button" disabled={generatingPdf === record.id} onClick={() => void downloadPdf(record)}>{generatingPdf === record.id ? "Creating..." : "Download PDF"}</button></div>
           </article>
         )}
       </section>
     </>}
     {activeDraft && <InspectionWorkflow userId={userId} directorName={directorName} location={activeDraft.location} close={() => setActiveDraft(null)} completed={() => { setActiveDraft(null); setRefreshKey((value) => value + 1); }} />}
-    {activeReport && <InspectionReport record={activeReport} close={() => setActiveReport(null)} />}
+    {activeReport && <InspectionReport record={activeReport} generating={generatingPdf === activeReport.id} download={() => void downloadPdf(activeReport)} close={() => setActiveReport(null)} />}
   </div>;
 }
 
-function InspectionReport({ record, close }: { record: InspectionRecord; close: () => void }) {
+function InspectionReport({ record, generating, download, close }: { record: InspectionRecord; generating: boolean; download: () => void; close: () => void }) {
   const responses = record.responses || {};
   return <div className="inspection-backdrop">
     <section className="inspection-workflow inspection-report-view" role="dialog" aria-modal="true" aria-labelledby="inspection-report-title">
@@ -137,7 +155,100 @@ function InspectionReport({ record, close }: { record: InspectionRecord; close: 
         })}
       </section>)}
       {record.overallNotes && <section className="inspection-report-notes"><b>Overall notes</b><p>{record.overallNotes}</p></section>}
-      <footer className="inspection-actions"><span /><button className="primary-button" onClick={close}>Close report</button></footer>
+      <footer className="inspection-actions"><button className="outline-button" onClick={close}>Close report</button><button className="primary-button" disabled={generating} onClick={download}>{generating ? "Creating PDF..." : "Download PDF"}</button></footer>
     </section>
   </div>;
+}
+
+async function photoData(url: string) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function createInspectionPdf(record: InspectionRecord) {
+  const pdf = new jsPDF({ unit: "pt", format: "letter" });
+  const margin = 42;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  let y = margin;
+  const addPageIfNeeded = (height: number) => {
+    if (y + height > pageHeight - 48) {
+      pdf.addPage();
+      y = margin;
+    }
+  };
+  const writeWrapped = (text: string, size = 10, width = pageWidth - margin * 2, bold = false) => {
+    pdf.setFont("helvetica", bold ? "bold" : "normal");
+    pdf.setFontSize(size);
+    const lines = pdf.splitTextToSize(text, width);
+    addPageIfNeeded(lines.length * (size + 3));
+    pdf.text(lines, margin, y);
+    y += lines.length * (size + 3);
+  };
+
+  pdf.setTextColor(23, 52, 94);
+  writeWrapped("BRIGHT LEARNERS ACADEMY", 11, pageWidth - margin * 2, true);
+  y += 5;
+  writeWrapped("Monthly Facility Inspection Report", 22, pageWidth - margin * 2, true);
+  y += 8;
+  writeWrapped(`Location: ${record.location}`, 11, pageWidth - margin * 2, true);
+  writeWrapped(`Director: ${record.directorName}`, 11);
+  writeWrapped(`Completed: ${formattedDate(record.completedAt)}`, 11);
+  writeWrapped(`Result: ${record.answeredCount || totalItems} items reviewed · ${record.failedCount || 0} follow-ups`, 11);
+  y += 14;
+
+  const responses = record.responses || {};
+  for (const [sectionIndex, section] of monthlyInspectionSections.entries()) {
+    addPageIfNeeded(48);
+    pdf.setFillColor(235, 241, 242);
+    pdf.roundedRect(margin, y - 14, pageWidth - margin * 2, 30, 5, 5, "F");
+    pdf.setTextColor(23, 52, 94);
+    writeWrapped(`${sectionIndex + 1}. ${section.title}`, 14, pageWidth - margin * 2 - 14, true);
+    y += 9;
+    for (const [itemIndex, item] of section.items.entries()) {
+      const answer = responses[item.id] || {};
+      addPageIfNeeded(answer.note || answer.correctiveAction || answer.photoUrl ? 105 : 42);
+      const label = answer.result === "na" ? "N/A" : answer.result === "fail" ? "FAIL" : "PASS";
+      pdf.setTextColor(answer.result === "fail" ? 157 : 23, answer.result === "fail" ? 61 : 52, answer.result === "fail" ? 53 : 94);
+      writeWrapped(`${sectionIndex + 1}.${itemIndex + 1}  [${label}]  ${item.text}`, 9, pageWidth - margin * 2, true);
+      pdf.setTextColor(65, 80, 100);
+      if (answer.note) writeWrapped(`Explanation: ${answer.note}`, 9);
+      if (answer.correctiveAction) writeWrapped(`Corrective action: ${answer.correctiveAction}`, 9);
+      if (answer.responsiblePerson || answer.dueDate) writeWrapped(`Responsible: ${answer.responsiblePerson || "Not assigned"}${answer.dueDate ? ` · Due: ${answer.dueDate}` : ""}`, 9);
+      if (answer.photoUrl) {
+        try {
+          addPageIfNeeded(100);
+          const image = await photoData(answer.photoUrl);
+          const format = image.startsWith("data:image/png") ? "PNG" : "JPEG";
+          pdf.addImage(image, format, margin, y, 120, 90, undefined, "FAST");
+          y += 99;
+        } catch {
+          writeWrapped(`Photo evidence: ${answer.photoUrl}`, 8);
+        }
+      }
+      y += 7;
+    }
+  }
+  if (record.overallNotes) {
+    addPageIfNeeded(60);
+    writeWrapped("Overall notes", 12, pageWidth - margin * 2, true);
+    writeWrapped(record.overallNotes, 10);
+  }
+  const pageCount = pdf.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    pdf.setPage(page);
+    pdf.setFontSize(8);
+    pdf.setTextColor(110, 120, 135);
+    pdf.text(`Bright Learners Academy · Internal inspection record · Page ${page} of ${pageCount}`, margin, pageHeight - 24);
+  }
+  const date = dateValue(record.completedAt) || new Date();
+  const datePart = date.toISOString().slice(0, 10);
+  const safeName = `${record.directorName || "Director"}_${record.location}_Inspection_${datePart}`.replace(/[^a-z0-9_-]+/gi, "_");
+  pdf.save(`${safeName}.pdf`);
 }
