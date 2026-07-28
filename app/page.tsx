@@ -353,7 +353,7 @@ export default function Home() {
           </details>
         </header>
 
-        {activePortal === "learning" && view === "dashboard" && <DashboardView userId={user.uid} name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} />}
+        {activePortal === "learning" && view === "dashboard" && <DashboardView userId={user.uid} name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} openCertificates={() => setCertificateOpen(true)} />}
         {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} email={profile.email} displayName={profile.displayName} location={assignedLocation} province={assignedProvince} />}
         {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
         {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
@@ -566,7 +566,7 @@ function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; 
   return <main className="portal-chooser"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><p className="eyebrow">Private staff access</p><h1>Where would you like to go, {name.split(" ")[0]}?</h1><p>Learning and facility inspections are separate workspaces with different tools and records.</p><div className="portal-choice-grid"><button onClick={() => choose("learning")}><span className="choice-icon learning-choice">⌂</span><small>For all staff</small><h2>Employee Learning</h2><p>Complete onboarding modules, take assessments, review resources and download certificates.</p><b>Open learning portal →</b></button><button onClick={() => choose("inspection")}><span className="choice-icon inspection-choice">✓</span><small>For directors</small><h2>Director Inspections</h2><p>Run facility checklists, document follow-ups, attach evidence and export inspection records.</p><b>Open inspection portal →</b></button>{canAdmin && <button onClick={() => choose("admin")}><span className="choice-icon admin-choice">A</span><small>For executives</small><h2>Admin Console</h2><p>Manage staff access, courses, checklists, deadlines and organization-wide compliance.</p><b>Open admin console →</b></button>}</div></section></main>;
 }
 
-function DashboardView({ userId, name, location, province, setView }: { userId: string; name: string; location: string; province: Province; setView: (view: View) => void }) {
+function DashboardView({ userId, name, location, province, setView, openCertificates }: { userId: string; name: string; location: string; province: Province; setView: (view: View) => void; openCertificates: () => void }) {
   const [completedModules, setCompletedModules] = useState<number[]>([]);
   const moduleCount = province === "AB" ? albertaModules.length : saskatchewanModules.length;
   const completion = Math.round((completedModules.length / moduleCount) * 100);
@@ -588,7 +588,7 @@ function DashboardView({ userId, name, location, province, setView }: { userId: 
     </div>
     <div className="dashboard-columns">
       <section className="continue-panel"><div><p className="eyebrow">{completedModules.length ? "Continue learning" : "Start learning"}</p><h2>Your Bright Learners orientation</h2><p>Complete all assigned modules and earn 100% on every knowledge check to receive your final certificate.</p><div className="dashboard-progress"><i style={{ width: `${completion}%` }} /></div><small>{completedModules.length} of {moduleCount} modules complete · {completion}%</small></div><button className="brand-button" onClick={() => setView("employee")}>{completedModules.length ? "Continue learning" : "View modules"} →</button></section>
-      <section className="dashboard-links"><p className="eyebrow">Quick access</p><button onClick={() => setView("resources")}><span>?</span><div><b>Policies & resources</b><small>Official documents and quick guides</small></div>→</button><button onClick={() => setView("employee")}><span>✓</span><div><b>Required learning</b><small>Continue assigned modules</small></div>→</button><button onClick={() => setView("employee")}><span>☆</span><div><b>My certificates</b><small>Completed training records</small></div>→</button></section>
+      <section className="dashboard-links"><p className="eyebrow">Quick access</p><button onClick={() => setView("resources")}><span>?</span><div><b>Policies & resources</b><small>Official documents and quick guides</small></div>→</button><button onClick={() => setView("employee")}><span>✓</span><div><b>Required learning</b><small>Continue assigned modules</small></div>→</button><button onClick={openCertificates}><span>☆</span><div><b>My certificates</b><small>Completed training records</small></div>→</button></section>
     </div>
   </div>;
 }
