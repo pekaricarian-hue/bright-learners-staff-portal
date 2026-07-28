@@ -21,8 +21,9 @@ import { arrayUnion, doc, getDoc, serverTimestamp, setDoc } from "firebase/fires
 import { auth, db } from "./firebase";
 import InspectionWorkflow from "./inspection-workflow";
 import ExitConfirmation from "./exit-confirmation";
+import InspectionReports from "./inspection-reports";
 
-type View = "dashboard" | "employee" | "resources" | "director" | "admin";
+type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 type Province = "AB" | "SK";
 type StaffRole = "employee" | "director" | "admin" | "owner";
@@ -334,7 +335,7 @@ export default function Home() {
           <Link className="portal-logo-link" href="/" onClick={() => setView(activePortal === "inspection" ? "director" : activePortal === "admin" ? "admin" : "dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
           <nav aria-label="Portal">
             {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
-            {activePortal === "inspection" && <><span data-tour="inspection-heading" className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
+            {activePortal === "inspection" && <><button data-tour="inspection-dashboard-tab" className={view === "director" ? "active" : ""} onClick={() => setView("director")}>Inspection dashboard</button><button data-tour="inspection-reports-tab" className={view === "inspection-reports" ? "active" : ""} onClick={() => setView("inspection-reports")}>Reports & drafts</button></>}
             {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
           </nav>
           <details className="account-menu">
@@ -353,7 +354,8 @@ export default function Home() {
         {activePortal === "learning" && view === "dashboard" && <DashboardView userId={user.uid} name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} />}
         {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} location={assignedLocation} province={assignedProvince} />}
         {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
-        {activePortal === "inspection" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
+        {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
+        {activePortal === "inspection" && view === "inspection-reports" && <InspectionReports userId={user.uid} directorName={profile.displayName} />}
         {activePortal === "admin" && <AdminView />}
       </section>
       {editProfileOpen && <EditProfile profile={profile} save={updateProfile} close={() => setEditProfileOpen(false)} />}
@@ -491,9 +493,9 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
       ["Your profile", "Open this menu to edit your legal certificate name, view certificate status, restart this walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
     inspection: [
-      ["Director inspection portal", "This workspace is separate from learning. It holds facility checklists and records for the academy selected on each inspection.", "[data-tour='inspection-heading']"],
+      ["Inspection dashboard", "Start and resume facility checklists from this dashboard. This workspace is separate from employee learning.", "[data-tour='inspection-dashboard-tab']"],
       ["Start or resume an inspection", "Choose the academy, start its required checklist, save an unfinished draft and continue it later without losing responses.", "[data-tour='inspection-button']"],
-      ["Document every exception", "Failed items require a note. Add corrective actions and photographs when evidence is useful.", "[data-tour='inspection-exception']"],
+      ["Reports and drafts", "Open this page to resume saved drafts and review every completed inspection in your own history.", "[data-tour='inspection-reports-tab']"],
       ["Your profile", "Use this menu to switch portals, edit your name, restart the walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
     admin: [

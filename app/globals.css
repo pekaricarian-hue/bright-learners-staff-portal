@@ -187,6 +187,13 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   transition: top .22s ease, left .22s ease;
 }
 
+.guided-tour.anchored > .eyebrow {
+  max-width: calc(100% - 82px);
+  min-height: 28px;
+  margin-top: 0;
+  line-height: 1.45;
+}
+
 .guided-tour.anchored::before {
   content: "";
   position: absolute;
@@ -895,6 +902,196 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 .exit-confirmation-actions button {
   width: 100%;
   min-height: 50px;
+}
+
+.inspection-records-page {
+  max-width: 1240px;
+}
+
+.inspection-record-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 26px 0;
+}
+
+.inspection-record-summary article {
+  display: grid;
+  gap: 4px;
+  padding: 20px;
+  border: 1px solid #d5dee5;
+  border-radius: 16px;
+  background: white;
+}
+
+.inspection-record-summary b {
+  color: #17345e;
+  font-size: 30px;
+}
+
+.inspection-record-summary span {
+  color: #718095;
+}
+
+.inspection-record-section {
+  margin-top: 18px;
+  padding: 24px;
+  border: 1px solid #d5dee5;
+  border-radius: 18px;
+  background: white;
+}
+
+.inspection-record-section h2 {
+  margin: 4px 0 0;
+}
+
+.inspection-history-row {
+  display: grid;
+  grid-template-columns: 88px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 15px 0;
+  border-top: 1px solid #e2e7eb;
+}
+
+.inspection-history-row:first-of-type {
+  margin-top: 16px;
+}
+
+.inspection-history-row div b,
+.inspection-history-row div small {
+  display: block;
+}
+
+.inspection-history-row div small {
+  margin-top: 5px;
+  color: #748297;
+}
+
+.inspection-history-row button {
+  min-width: 120px;
+}
+
+.inspection-history-status {
+  padding: 8px 10px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+}
+
+.inspection-history-status.draft {
+  background: #fff0c9;
+  color: #74550d;
+}
+
+.inspection-history-status.complete {
+  background: #e4f4e8;
+  color: #29633a;
+}
+
+.inspection-empty,
+.inspection-record-message {
+  padding: 22px;
+  border-radius: 12px;
+  background: #f2f5f7;
+  color: #718095;
+}
+
+.inspection-record-message.error {
+  background: #fff0ed;
+  color: #9b4039;
+}
+
+.inspection-report-view {
+  background: #f7f8f5;
+}
+
+.inspection-report-summary {
+  display: flex;
+  gap: 12px;
+  padding: 20px 28px 8px;
+}
+
+.inspection-report-summary b {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #eaf0f4;
+}
+
+.inspection-report-section {
+  margin: 18px 28px;
+  overflow: hidden;
+  border: 1px solid #d5dee5;
+  border-radius: 14px;
+  background: white;
+}
+
+.inspection-report-section h2 {
+  margin: 0;
+  padding: 15px 18px;
+  border-bottom: 1px solid #d5dee5;
+  background: #edf2f3;
+  font-size: 20px;
+}
+
+.inspection-report-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 70px;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5eaed;
+}
+
+.inspection-report-row:last-child {
+  border-bottom: 0;
+}
+
+.inspection-report-row > span {
+  color: #748297;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.inspection-report-row > strong {
+  text-align: right;
+}
+
+.inspection-report-row.pass > strong { color: #2c7240; }
+.inspection-report-row.fail > strong { color: #a43e37; }
+.inspection-report-row.na > strong { color: #677588; }
+
+.inspection-report-row p {
+  margin: 6px 0 0;
+  color: #607086;
+  font-size: 13px;
+}
+
+.inspection-report-row a {
+  display: inline-block;
+  margin-top: 7px;
+  color: #17345e;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.inspection-report-notes {
+  margin: 18px 28px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #fff3cf;
+}
+
+@media (max-width: 720px) {
+  .inspection-record-summary { grid-template-columns: 1fr; }
+  .inspection-history-row { grid-template-columns: 1fr; }
+  .inspection-history-row button { width: 100%; }
+  .inspection-report-summary { flex-direction: column; padding-left: 16px; padding-right: 16px; }
+  .inspection-report-section, .inspection-report-notes { margin-left: 16px; margin-right: 16px; }
+  .inspection-report-row { grid-template-columns: 42px 1fr; }
+  .inspection-report-row > strong { grid-column: 2; text-align: left; }
 }
 
 @media (max-width: 520px) {
