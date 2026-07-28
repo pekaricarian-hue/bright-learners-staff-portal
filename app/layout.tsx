@@ -16,7 +16,13 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(`${protocol}://${host}`),
     title: "Bright Learners Staff Learning",
     description: "Training, inspections and compliance records for Bright Learners Academy.",
-    icons: { icon: "/favicon.svg" },
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "any" },
+        { url: "/favicon.svg", type: "image/svg+xml" },
+      ],
+      shortcut: "/favicon.ico",
+    },
     openGraph: {
       title: "Bright Learners Staff Learning",
       description: "Training, inspections & compliance — all in one place.",

@@ -274,3 +274,8 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
     flex-direction: column;
   }
 }
+.password-email-link {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+}

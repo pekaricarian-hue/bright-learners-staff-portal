@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
   User,
+  linkWithCredential,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  updatePassword,
 } from "firebase/auth";
 import { arrayUnion, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -88,6 +91,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [certificateOpen, setCertificateOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [tourPortal, setTourPortal] = useState<"learning" | "inspection" | "admin">("learning");
@@ -196,8 +200,13 @@ export default function Home() {
     setMessage("");
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch {
-      setMessage("We couldn’t sign you in. Check your email and password.");
+    } catch (error) {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+      if (code.includes("invalid-credential") || code.includes("wrong-password")) {
+        setMessage("That password is not set or is incorrect. Choose Reset password to create a password, or continue with Google.");
+      } else {
+        setMessage("We couldn’t sign you in. Try Google sign-in or use Reset password to create a password.");
+      }
     }
   }
 
@@ -214,9 +223,9 @@ export default function Home() {
     if (!email) return setMessage("Enter your email first, then choose reset password.");
     try {
       await sendPasswordResetEmail(auth, email);
-      setMessage("Password reset email sent.");
+      setMessage("Password setup/reset email sent. Check your inbox and spam folder.");
     } catch {
-      setMessage("We couldn’t send a reset email for that address.");
+      setMessage("We couldn’t send a password link for that address. If the account uses Google, continue with Google and add a password from the profile menu.");
     }
   }
 
@@ -287,6 +296,7 @@ export default function Home() {
             <div className="account-menu-panel">
               {canInspect && <button onClick={() => setPortalMode("chooser")}><span>⇄</span><div><b>Switch portal</b><small>Learning, inspections or admin</small></div></button>}
               <button onClick={() => setEditProfileOpen(true)}><span>✎</span><div><b>Edit profile</b><small>Name and certificate details</small></div></button>
+              <button onClick={() => setPasswordOpen(true)}><span>⌁</span><div><b>Set or change password</b><small>Receive a secure email link</small></div></button>
               <button onClick={() => setCertificateOpen(true)}><span>☆</span><div><b>View certificate</b><small>Orientation completion record</small></div></button>
               <button onClick={() => startTour(activePortal)}><span>?</span><div><b>Website walkthrough</b><small>Tour this portal again</small></div></button>
               <button className="account-signout" onClick={() => signOut(auth)}><span>→</span><div><b>Sign out</b><small>End this session</small></div></button>
@@ -301,6 +311,7 @@ export default function Home() {
         {activePortal === "admin" && <AdminView />}
       </section>
       {editProfileOpen && <EditProfile profile={profile} save={updateProfileName} close={() => setEditProfileOpen(false)} />}
+      {passwordOpen && <PasswordResetDialog email={profile.email} close={() => setPasswordOpen(false)} />}
       {certificateOpen && <CertificateStatus profile={profile} close={() => setCertificateOpen(false)} />}
       {tourOpen && <GuidedTour portal={tourPortal} canAdmin={canAdmin} finish={() => finishTour(tourPortal)} close={() => setTourOpen(false)} />}
     </main>
@@ -322,6 +333,49 @@ function EditProfile({ profile, save, close }: { profile: StaffProfile; save: (f
   const [lastName, setLastName] = useState(profile.lastName);
   const [saving, setSaving] = useState(false);
   return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title"><button className="profile-editor-close" onClick={close} aria-label="Close profile editor">×</button><p className="eyebrow">Certificate details</p><h2 id="edit-profile-title">Edit your staff profile</h2><p>Use your legal name exactly as it should appear on your final orientation certificate.</p><div className="profile-name-fields"><label>Legal first name<input required autoComplete="given-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Enter your legal first name" /></label><label>Legal last name<input required autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Enter your legal last name" /></label></div><label>Assigned academy<input value={`${profile.location} — ${profile.province === "SK" ? "Saskatchewan" : "Alberta"}`} disabled /></label><button className="brand-button" disabled={!firstName.trim() || !lastName.trim() || saving} onClick={async () => { setSaving(true); try { await save(firstName, lastName); } finally { setSaving(false); } }}>{saving ? "Saving…" : "Save profile"}</button><small>Contact an administrator if your academy assignment needs to change.</small></section></div>;
+}
+
+function PasswordResetDialog({ email, close }: { email: string; close: () => void }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [status, setStatus] = useState("");
+  const [sending, setSending] = useState(false);
+  async function savePassword() {
+    if (!auth.currentUser) return;
+    if (newPassword.length < 8) return setStatus("Use at least 8 characters.");
+    if (newPassword !== confirmPassword) return setStatus("The two passwords do not match.");
+    setSending(true);
+    setStatus("");
+    try {
+      const hasPassword = auth.currentUser.providerData.some((provider) => provider.providerId === "password");
+      if (hasPassword) {
+        await updatePassword(auth.currentUser, newPassword);
+      } else {
+        await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(email, newPassword));
+      }
+      setNewPassword("");
+      setConfirmPassword("");
+      setStatus("Password saved. You can now sign in with either email and password or Google.");
+    } catch (error) {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+      setStatus(code.includes("requires-recent-login") ? "For security, sign out, sign back in with Google, then set the password again." : "The password could not be saved. Use the secure email link below or contact the administrator.");
+    } finally {
+      setSending(false);
+    }
+  }
+  async function sendLink() {
+    setSending(true);
+    setStatus("");
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setStatus(`A secure password setup/reset link was sent to ${email}. Check the inbox and spam folder.`);
+    } catch {
+      setStatus("The password email could not be sent. Please try again or contact the administrator.");
+    } finally {
+      setSending(false);
+    }
+  }
+  return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor" role="dialog" aria-modal="true" aria-labelledby="password-title"><button className="profile-editor-close" onClick={close} aria-label="Close password settings">×</button><p className="eyebrow">Account security</p><h2 id="password-title">Set or change your password</h2><p>A Google-created account can add password sign-in here. Use at least eight characters.</p><div className="profile-name-fields password-fields"><label>New password<input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setStatus(""); }} placeholder="At least 8 characters" /></label><label>Confirm password<input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setStatus(""); }} placeholder="Enter it again" /></label></div><button className="brand-button" disabled={sending || !newPassword || !confirmPassword} onClick={savePassword}>{sending ? "Saving…" : "Save password"}</button><button className="text-button password-email-link" disabled={sending} onClick={sendLink}>Or send a secure password email to {email}</button>{status && <p className="form-message" role="status">{status}</p>}<small>You can continue using Google sign-in after adding a password.</small></section></div>;
 }
 
 function CertificateStatus({ profile, close }: { profile: StaffProfile; close: () => void }) {
