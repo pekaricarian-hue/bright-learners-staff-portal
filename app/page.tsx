@@ -165,21 +165,31 @@ export default function Home() {
     setLocation(finalLocation);
   }
 
-  async function updateProfileName(firstName: string, lastName: string) {
+  async function updateProfile(firstName: string, lastName: string, selectedLocation?: string) {
     if (!user || !profile) return;
+    const canChangeOwnLocation = profile.role === "owner";
+    const finalLocation = canChangeOwnLocation && selectedLocation ? selectedLocation : profile.location;
+    const finalProvince: Province = finalLocation === "Willowgrove" ? "SK" : "AB";
     const updatedProfile = {
       ...profile,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      location: finalLocation,
+      province: finalProvince,
     };
     await setDoc(doc(db, "users", user.uid), {
       firstName: updatedProfile.firstName,
       lastName: updatedProfile.lastName,
       displayName: updatedProfile.displayName,
+      location: updatedProfile.location,
+      province: updatedProfile.province,
       updatedAt: serverTimestamp(),
     }, { merge: true });
     setProfile(updatedProfile);
+    setLocation(finalLocation);
+    setPortalMode("chooser");
+    setView("dashboard");
     setEditProfileOpen(false);
   }
 
@@ -344,7 +354,7 @@ export default function Home() {
         {activePortal === "inspection" && <DirectorView location={location} setLocation={setLocation} />}
         {activePortal === "admin" && <AdminView />}
       </section>
-      {editProfileOpen && <EditProfile profile={profile} save={updateProfileName} close={() => setEditProfileOpen(false)} />}
+      {editProfileOpen && <EditProfile profile={profile} save={updateProfile} close={() => setEditProfileOpen(false)} />}
       {passwordOpen && <PasswordResetDialog email={profile.email} close={() => setPasswordOpen(false)} />}
       {certificateOpen && <CertificateStatus profile={profile} close={() => setCertificateOpen(false)} />}
       {tourOpen && <GuidedTour portal={tourPortal} canAdmin={canAdmin} finish={() => finishTour(tourPortal)} close={() => setTourOpen(false)} />}
@@ -412,11 +422,13 @@ function ProfileSetup({ user, fixedLocation, save, signOutUser }: { user: User; 
   return <main className="location-assignment"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><p className="eyebrow">Set up your staff profile</p><h1>Confirm your name and academy.</h1><p>Your name will appear on your final internal orientation certificate. Your academy permanently assigns the correct provincial course unless an administrator changes it.</p><div className="profile-name-fields"><label>Legal first name<input required autoComplete="given-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Enter your legal first name" /></label><label>Legal last name<input required autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Enter your legal last name" /></label></div>{fixedLocation ? <label>Bright Learners location<input value={fixedLocation} disabled /></label> : <label>Bright Learners location<select value={selected} onChange={(event) => setSelected(event.target.value)}><option value="">Choose your location</option>{locations.map((academy) => <option key={academy} value={academy}>{academy}{academy === "Willowgrove" ? " — Saskatchewan" : " — Alberta"}</option>)}</select></label>}<button className="brand-button" disabled={!firstName.trim() || !lastName.trim() || !chosenLocation || saving} onClick={async () => { setSaving(true); try { await save(firstName, lastName, chosenLocation); } finally { setSaving(false); } }}>{saving ? "Saving…" : "Create my profile →"}</button><small>Selected the wrong location? Ask an administrator to update your assignment.</small></section></main>;
 }
 
-function EditProfile({ profile, save, close }: { profile: StaffProfile; save: (firstName: string, lastName: string) => Promise<void>; close: () => void }) {
+function EditProfile({ profile, save, close }: { profile: StaffProfile; save: (firstName: string, lastName: string, location?: string) => Promise<void>; close: () => void }) {
   const [firstName, setFirstName] = useState(profile.firstName);
   const [lastName, setLastName] = useState(profile.lastName);
+  const [selectedLocation, setSelectedLocation] = useState(profile.location);
   const [saving, setSaving] = useState(false);
-  return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title"><button className="profile-editor-close" onClick={close} aria-label="Close profile editor">×</button><p className="eyebrow">Certificate details</p><h2 id="edit-profile-title">Edit your staff profile</h2><p>Use your legal name exactly as it should appear on your final orientation certificate.</p><div className="profile-name-fields"><label>Legal first name<input required autoComplete="given-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Enter your legal first name" /></label><label>Legal last name<input required autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Enter your legal last name" /></label></div><label>Assigned academy<input value={`${profile.location} — ${profile.province === "SK" ? "Saskatchewan" : "Alberta"}`} disabled /></label><button className="brand-button" disabled={!firstName.trim() || !lastName.trim() || saving} onClick={async () => { setSaving(true); try { await save(firstName, lastName); } finally { setSaving(false); } }}>{saving ? "Saving…" : "Save profile"}</button><small>Contact an administrator if your academy assignment needs to change.</small></section></div>;
+  const canChangeOwnLocation = profile.role === "owner";
+  return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title"><button className="profile-editor-close" onClick={close} aria-label="Close profile editor">×</button><p className="eyebrow">Certificate details</p><h2 id="edit-profile-title">Edit your staff profile</h2><p>Use your legal name exactly as it should appear on your final orientation certificate.</p><div className="profile-name-fields"><label>Legal first name<input required autoComplete="given-name" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Enter your legal first name" /></label><label>Legal last name<input required autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Enter your legal last name" /></label></div>{canChangeOwnLocation ? <label>Testing academy<select value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)}>{locations.map((academy) => <option key={academy} value={academy}>{academy} — {academy === "Willowgrove" ? "Saskatchewan" : "Alberta"}</option>)}</select></label> : <label>Assigned academy<input value={`${profile.location} — ${profile.province === "SK" ? "Saskatchewan" : "Alberta"}`} disabled /></label>}<button className="brand-button" disabled={!firstName.trim() || !lastName.trim() || !selectedLocation || saving} onClick={async () => { setSaving(true); try { await save(firstName, lastName, selectedLocation); } finally { setSaving(false); } }}>{saving ? "Saving…" : "Save profile"}</button><small>{canChangeOwnLocation ? "Owner testing access: changing academy switches your assigned provincial course without deleting progress in the other province." : "Contact an administrator if your academy assignment needs to change."}</small></section></div>;
 }
 
 function PasswordResetDialog({ email, close }: { email: string; close: () => void }) {
