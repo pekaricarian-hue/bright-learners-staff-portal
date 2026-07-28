@@ -12,7 +12,7 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { arrayUnion, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
 type View = "dashboard" | "employee" | "resources" | "director" | "admin";
@@ -34,12 +34,14 @@ type StaffProfile = {
 };
 
 const albertaModules = [
-  { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "⌂" },
-  { title: "Healthy children, healthy centre", eyebrow: "Illness, hygiene & outbreaks", time: "18 min", colour: "blue", icon: "+" },
-  { title: "Clean toys, safer play", eyebrow: "Cleaning & disinfection", time: "16 min", colour: "rose", icon: "✦" },
-  { title: "Food, allergies & safe meals", eyebrow: "Every bite handled safely", time: "14 min", colour: "green", icon: "◇" },
-  { title: "Diapering, sleep & daily care", eyebrow: "Safe routines", time: "18 min", colour: "lavender", icon: "☾" },
-  { title: "Emergencies & safe spaces", eyebrow: "Ready when it matters", time: "20 min", colour: "orange", icon: "!" },
+  { title: "Welcome to Bright Learners", eyebrow: "Culture, role and professional expectations", time: "18 min", colour: "sun", icon: "⌂" },
+  { title: "Curriculum and learning through play", eyebrow: "FLIGHT, emergent curriculum and documentation", time: "22 min", colour: "lavender", icon: "✎" },
+  { title: "Active supervision and safe spaces", eyebrow: "Ratios, headcounts, hazards and playspaces", time: "22 min", colour: "orange", icon: "◎" },
+  { title: "Health, illness and outbreaks", eyebrow: "Recognize, separate, document and report", time: "22 min", colour: "blue", icon: "+" },
+  { title: "Cleaning, sanitizing and toy safety", eyebrow: "Correct products, contact times and schedules", time: "24 min", colour: "rose", icon: "✦" },
+  { title: "Food, allergies and safe meals", eyebrow: "Storage, temperatures and food-contact surfaces", time: "20 min", colour: "green", icon: "◇" },
+  { title: "Diapering, medication, sleep and daily care", eyebrow: "Safe personal-care routines", time: "24 min", colour: "lavender", icon: "☾" },
+  { title: "Guidance, incidents and emergencies", eyebrow: "Positive guidance, reporting and response", time: "24 min", colour: "blue", icon: "!" },
 ];
 const saskatchewanModules = [
   { title: "Welcome to Willowgrove", eyebrow: "Your role, centre & Saskatchewan framework", time: "18 min", colour: "sun", icon: "⌂" },
@@ -290,7 +292,7 @@ export default function Home() {
         </header>
 
         {activePortal === "learning" && view === "dashboard" && <DashboardView name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} />}
-        {activePortal === "learning" && view === "employee" && <EmployeeView location={assignedLocation} province={assignedProvince} />}
+        {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} location={assignedLocation} province={assignedProvince} />}
         {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
         {activePortal === "inspection" && <DirectorView location={location} setLocation={setLocation} />}
         {activePortal === "admin" && <AdminView />}
@@ -320,7 +322,7 @@ function EditProfile({ profile, save, close }: { profile: StaffProfile; save: (f
 }
 
 function CertificateStatus({ profile, close }: { profile: StaffProfile; close: () => void }) {
-  return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor certificate-status" role="dialog" aria-modal="true" aria-labelledby="certificate-title"><button className="profile-editor-close" onClick={close} aria-label="Close certificate status">×</button><span className="certificate-seal">☆</span><p className="eyebrow">Bright Learners Academy</p><h2 id="certificate-title">Orientation certificate</h2><p>Your internal completion certificate will be generated for <b>{profile.displayName}</b> after every assigned {profile.province === "SK" ? "Saskatchewan" : "Alberta"} module and assessment is completed at 100%.</p><div className="certificate-progress"><span>Current progress</span><b>1 of {profile.province === "SK" ? 8 : 6} modules complete</b></div><button className="brand-button" disabled>Certificate not yet available</button><small>Once complete, this page will provide the dated PDF and module checklist.</small></section></div>;
+  return <div className="profile-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="profile-editor certificate-status" role="dialog" aria-modal="true" aria-labelledby="certificate-title"><button className="profile-editor-close" onClick={close} aria-label="Close certificate status">×</button><span className="certificate-seal">☆</span><p className="eyebrow">Bright Learners Academy</p><h2 id="certificate-title">Orientation certificate</h2><p>Your internal completion certificate will be generated for <b>{profile.displayName}</b> after every assigned {profile.province === "SK" ? "Saskatchewan" : "Alberta"} module and assessment is completed at 100%.</p><div className="certificate-progress"><span>Requirement</span><b>Complete all 8 assigned modules</b></div><button className="brand-button" disabled>Certificate not yet available</button><small>Once complete, this page will provide the dated PDF and module checklist.</small></section></div>;
 }
 
 function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | "inspection" | "admin"; canAdmin: boolean; finish: () => void; close: () => void }) {
@@ -358,7 +360,7 @@ function DashboardView({ name, location, province, setView }: { name: string; lo
   return <div className="content dashboard-content">
     <section className="dashboard-greeting"><div><p className="eyebrow">{location} • {province === "SK" ? "Saskatchewan" : "Alberta"} course</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your assigned onboarding or find a policy for your academy.</p></div><div className="dashboard-sun" aria-hidden="true">☼</div></section>
     <div className="dashboard-stat-grid">
-      <article className="pastel-blue"><span className="line-symbol">✓</span><b>1 of {province === "SK" ? 8 : 6}</b><strong>Modules complete</strong><small>Your onboarding progress</small></article>
+      <article className="pastel-blue"><span className="line-symbol">✓</span><b>8</b><strong>Required modules</strong><small>Your saved progress appears in My Learning</small></article>
       <article className="pastel-green"><span className="line-symbol">◎</span><b>100%</b><strong>Required pass mark</strong><small>Every knowledge check</small></article>
       <article className="pastel-yellow"><span className="line-symbol">↗</span><b>120</b><strong>Learning points</strong><small>Earned so far</small></article>
       <article className="pastel-lilac"><span className="line-symbol">◷</span><b>12 min</b><strong>Next lesson</strong><small>Welcome to Bright Learners</small></article>
@@ -383,29 +385,45 @@ function ResourcesView({ location, province }: { location: string; province: Pro
   return <div className="content resources-content"><div className="page-intro"><p className="eyebrow">{location} reference library</p><h1>Resources</h1><p>Only your assigned provincial policies and Bright Learners guides are shown here.</p></div><div className="resource-grid">{assignedResources.map(([title, description, resourceProvince], index) => <article key={title}><span className={`resource-icon resource-${index + 1}`}>{index + 1}</span><small>{resourceProvince} resource</small><h2>{title}</h2><p>{description}</p><button>Open resource →</button></article>)}</div></div>;
 }
 
-function EmployeeView({ location, province }: { location: string; province: Province }) {
-  const [completedCount, setCompletedCount] = useState(1);
+function EmployeeView({ userId, location, province }: { userId: string; location: string; province: Province }) {
+  const [completedModules, setCompletedModules] = useState<number[]>([]);
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [favorites, setFavorites] = useState<number[]>([]);
-  const [answer, setAnswer] = useState("");
-  const [quizMessage, setQuizMessage] = useState("");
   const modules = province === "AB" ? albertaModules : saskatchewanModules;
-  const completion = Math.round((completedCount / modules.length) * 100);
+  const completion = Math.round((completedModules.length / modules.length) * 100);
+  const progressId = `${userId}_${province.toLowerCase()}-orientation`;
 
-  function checkAnswer() {
-    if (answer === "after-each-child") {
-      setQuizMessage("Correct — 100%. The next module is now unlocked.");
-      setCompletedCount((current) => Math.max(current, 2));
-    } else {
-      setQuizMessage("Not quite. Review the cleaning frequency and try again.");
-    }
+  useEffect(() => {
+    getDoc(doc(db, "progress", progressId)).then((snapshot) => {
+      if (snapshot.exists()) setCompletedModules(snapshot.data().completedModules || []);
+    }).catch(() => undefined);
+  }, [progressId]);
+
+  async function recordAttempt(moduleIndex: number, score: number, answers: Record<string, number>) {
+    const passed = score === 100;
+    const update: Record<string, unknown> = {
+      userId,
+      courseId: `${province.toLowerCase()}-orientation`,
+      attempts: arrayUnion({
+        moduleIndex,
+        score,
+        passed,
+        answers,
+        submittedAt: new Date().toISOString(),
+      }),
+      currentModule: passed ? Math.min(moduleIndex + 1, modules.length - 1) : moduleIndex,
+      updatedAt: serverTimestamp(),
+    };
+    if (passed) update.completedModules = arrayUnion(moduleIndex);
+    await setDoc(doc(db, "progress", progressId), update, { merge: true });
+    if (passed) setCompletedModules((current) => current.includes(moduleIndex) ? current : [...current, moduleIndex].sort((a, b) => a - b));
   }
 
   return <div className="content learning-content">
     <section className="learning-intro">
       <div><p className="handwritten">Your learning path</p><h2>{location} • {province === "AB" ? "Alberta employee orientation" : "Saskatchewan employee orientation"}</h2><p>This is the course assigned to your academy. It combines Bright Learners procedures with the rules and public-health guidance that apply to your location.</p></div>
-      <div className="course-progress"><b>{completion}%</b><span>{completedCount} of {modules.length} complete</span></div>
+      <div className="course-progress"><b>{completion}%</b><span>{completedModules.length} of {modules.length} complete</span></div>
     </section>
     {province === "SK" && <section className="sk-status-alert"><span>SK</span><div><b>Willowgrove is operating under a provisional licence.</b><p>Close monitoring is expected for six months. The Ministry licence copy is still pending. Site directions and verbal Public Health guidance are identified separately from written requirements.</p></div></section>}
     <aside className="course-assignment-note"><b>{province === "SK" ? "Saskatchewan" : "Alberta"} course assigned through {location}.</b><span>Need a different assignment? Contact an administrator.</span></aside>
@@ -414,10 +432,10 @@ function EmployeeView({ location, province }: { location: string; province: Prov
       <div className="module-list-heading"><div><p className="eyebrow">Required learning</p><h3>Your modules</h3></div><span>Complete in order</span></div>
       <div className="professional-module-grid">
         {modules.map((module, index) => {
-          const complete = index < completedCount;
-          const available = true;
+          const complete = completedModules.includes(index);
+          const available = index === 0 || completedModules.includes(index - 1);
           return <article className={`professional-module ${complete ? "complete" : available ? "current" : "locked"}`} key={module.title}>
-            <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); setQuizMessage(""); setAnswer(""); }}>
+            <button className="module-card-button" disabled={!available} onClick={() => { setSelectedModule(index); setLessonOpen(false); }}>
               <div className={`module-media-preview media-${index + 1}`} aria-hidden="true"><span className="program-icon">{module.icon}</span><small>{module.eyebrow}</small></div>
               <div className="module-card-top"><span className={`module-number ${module.colour}`}>{complete ? "✓" : index + 1}</span><span className="module-time">{module.time}</span></div>
               <div className="module-card-main"><small>Module {index + 1}</small><h3>{module.title}</h3></div>
@@ -435,12 +453,12 @@ function EmployeeView({ location, province }: { location: string; province: Prov
     {selectedModule !== null && !lessonOpen && <div className="module-preview-backdrop" role="dialog" aria-modal="true" aria-labelledby="module-preview-title" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectedModule(null); }}>
       <section className="module-preview-card">
         <button className="lesson-close" onClick={() => setSelectedModule(null)} aria-label="Close module">×</button>
-        <div className={`preview-icon ${modules[selectedModule].colour}`}>{selectedModule < completedCount ? "✓" : String(selectedModule + 1).padStart(2, "0")}</div>
+        <div className={`preview-icon ${modules[selectedModule].colour}`}>{completedModules.includes(selectedModule) ? "✓" : String(selectedModule + 1).padStart(2, "0")}</div>
         <p className="eyebrow">Module {selectedModule + 1} • {modules[selectedModule].time}</p>
         <h2 id="module-preview-title">{modules[selectedModule].title}</h2>
         <p className="preview-description">{modules[selectedModule].eyebrow}. Work through the lesson, review its official references, then complete the knowledge check with 100%.</p>
-        <div className="preview-meta"><span><b>{selectedModule < completedCount ? "Complete" : "Available"}</b>Status</span><span><b>100%</b>Pass mark</span><span><b>{province}</b>Course</span></div>
-        <button className="primary-button preview-start" onClick={() => setLessonOpen(true)}>{selectedModule < completedCount ? "Review module" : "Start module"}</button>
+        <div className="preview-meta"><span><b>{completedModules.includes(selectedModule) ? "Complete" : "Available"}</b>Status</span><span><b>100%</b>Pass mark</span><span><b>{province}</b>Course</span></div>
+        <button className="primary-button preview-start" onClick={() => setLessonOpen(true)}>{completedModules.includes(selectedModule) ? "Review module" : "Start module"}</button>
         <button className={`favorite-button ${favorites.includes(selectedModule) ? "active" : ""}`} onClick={() => setFavorites((current) => current.includes(selectedModule) ? current.filter((item) => item !== selectedModule) : [...current, selectedModule])}>{favorites.includes(selectedModule) ? "★ Favorited" : "☆ Add to favorites"}</button>
       </section>
     </div>}
@@ -450,14 +468,119 @@ function EmployeeView({ location, province }: { location: string; province: Prov
         <button className="lesson-close" onClick={() => { setLessonOpen(false); setSelectedModule(null); }} aria-label="Close lesson">×</button>
         <p className="eyebrow">Module {selectedModule + 1} • {province === "AB" ? "Alberta" : "Saskatchewan"} orientation</p>
         <h2 id="lesson-title">{modules[selectedModule].title}</h2>
-        {province === "SK" ? <SaskatchewanModuleLesson moduleIndex={selectedModule} /> : selectedModule === 0 ? <WelcomeLesson /> : selectedModule === 1 ? <HealthLesson answer={answer} setAnswer={setAnswer} checkAnswer={checkAnswer} message={quizMessage} /> :
-          <div className="lesson-placeholder"><span>{modules[selectedModule].icon}</span><h3>This lesson is on the board.</h3><p>Its complete cited content and knowledge check are being assembled from Bright Learners orientation material and the applicable Alberta requirements.</p></div>}
+        <CourseModuleLesson province={province} moduleIndex={selectedModule} onAttempt={(score, answers) => recordAttempt(selectedModule, score, answers)} />
       </section>
     </div>}
   </div>;
 }
 
 type OrientationSlide = { kicker: string; title: string; body: string; points?: string[]; media?: string; ref: string };
+type QuizQuestion = { id: string; prompt: string; options: string[]; correct: number; reviewSlide: number; explanation: string; ref: string };
+
+const abLessonSlides: OrientationSlide[][] = [
+  [
+    { kicker: "Welcome", title: "You are part of Bright Learners", body: "Bright Learners began in Alberta in 2015. Every academy shares one purpose: children should feel safe, known and excited to learn.", media: "Founders' welcome video", ref: "Bright Learners Orientation, May 2026 - slides 1-4" },
+    { kicker: "Your role", title: "Safety and relationships come first", body: "Educators actively supervise, prepare learning experiences, observe development and maintain welcoming spaces. If you are unsure, pause and ask the director.", points: ["Protect children before completing another task", "Communicate concerns immediately", "Follow licensing, health and centre procedures"], ref: "Bright Learners Orientation, May 2026 - slides 8-14" },
+    { kicker: "Families", title: "Build trust every day", body: "Greet families by name, listen carefully, repeat important care instructions and share useful updates. Keep personal information private.", media: "Family greeting scenario", ref: "Bright Learners Orientation, May 2026 - slides 11-12, 36-39" },
+    { kicker: "Professional conduct", title: "Respect is non-negotiable", body: "Harassment, bullying, mental abuse and sexual misconduct are not accepted. Raise concerns promptly through centre leadership.", ref: "Bright Learners Orientation, May 2026 - slides 13-15" },
+    { kicker: "First day", title: "Help each child and family feel welcome", body: "Prepare the room, greet the family, confirm allergies and care instructions, support separation calmly and provide a positive pickup update.", media: "First-day welcome video", ref: "Bright Learners Orientation, May 2026 - slides 56-58" },
+  ],
+  [
+    { kicker: "Approach", title: "Children learn through play", body: "Bright Learners combines Alberta's FLIGHT framework, emergent curriculum and Reggio Emilia ideas. Planning begins with careful observation of children's interests.", ref: "Bright Learners Orientation, May 2026 - slides 16-23" },
+    { kicker: "Observe", title: "Notice before you plan", body: "Record what children say, do and investigate. Look for repeated interests, questions, relationships and emerging skills.", media: "Observation-note examples", ref: "Bright Learners Orientation, May 2026 - slides 24-27" },
+    { kicker: "Plan", title: "Turn observations into invitations", body: "Use observations to offer materials, questions and experiences that extend learning without controlling the result.", points: ["Keep experiences open-ended", "Offer real and natural materials when safe", "Adapt for age, ability and culture"], ref: "Bright Learners Orientation, May 2026 - slides 28-33; AHS Natural Materials recommendations" },
+    { kicker: "Document", title: "Make learning visible", body: "Documentation explains the learning, not just the activity. Use accurate notes and purposeful photos while protecting dignity and privacy.", media: "Learning-story and Lillio examples", ref: "Bright Learners Orientation, May 2026 - slides 34-39" },
+    { kicker: "Review", title: "Planning is a team practice", body: "Share observations, review the room and adjust plans together. A beautiful setup is not enough if it does not respond to the children.", ref: "Bright Learners Orientation, May 2026 - slides 27-35" },
+  ],
+  [
+    { kicker: "Active supervision", title: "Know where every child is", body: "Position yourself to see and hear children, scan often, move through blind spots and anticipate risk. Supervision is active, not passive.", ref: "Bright Learners Orientation, May 2026 - slides 40-43; Alberta Child Care Licensing Handbook, supervision requirements" },
+    { kicker: "Transitions", title: "Count children every time the group moves", body: "Complete and verbally confirm headcounts when leaving or entering rooms, playgrounds and vehicles. Compare the count with attendance.", media: "Headcount demonstration", ref: "Bright Learners Orientation, May 2026 - slides 40-43" },
+    { kicker: "Ratios", title: "Stay within the required staff-to-child ratio", body: "Know the ratio and group-size requirement for the children in your care. Tell the director before a change could leave the room out of ratio.", ref: "Alberta Child Care Licensing Handbook - staff-to-child ratios and group sizes" },
+    { kicker: "Hazards", title: "Keep dangerous items inaccessible", body: "Cleaning products, medicines, sharp objects, plastic bags, hot items and staff belongings must be secured away from children.", ref: "AHS Health & Safety Guidelines for Child Care Facilities - environmental safety; Bright Learners Orientation, May 2026 - slides 44-47" },
+    { kicker: "Playspaces", title: "Inspect before children play", body: "Check equipment, surfacing, gates, debris, entrapment risks and weather conditions. Block unsafe equipment and report it immediately.", media: "Outdoor inspection walkthrough", ref: "AHS Inspection and Maintenance of Playspaces - inspection and maintenance sections" },
+  ],
+  [
+    { kicker: "Recognize", title: "Notice changes from normal", body: "Watch for fever, vomiting, diarrhea, breathing difficulty, unusual tiredness, rash, irritated eyes or other signs that a child may be ill.", ref: "AHS Health & Safety Guidelines for Child Care Facilities - illness section" },
+    { kicker: "Respond", title: "Separate, supervise and contact the family", body: "Move the sick child away from the group while keeping them comfortable and supervised. Contact the parent or guardian for prompt pickup.", media: "Illness response scenario", ref: "AHS Health & Safety Guidelines for Child Care Facilities - illness management" },
+    { kicker: "Document", title: "Record facts and times", body: "Record observed symptoms, care provided, who was contacted and when the child left. Avoid diagnosing the child.", ref: "AHS Health & Safety Guidelines for Child Care Facilities - records and notification" },
+    { kicker: "Outbreaks", title: "Escalate unusual illness patterns", body: "Tell the director when several children or staff have similar symptoms. Follow current AHS instructions for reporting, exclusion and enhanced cleaning.", ref: "AHS Health & Safety Guidelines for Child Care Facilities - outbreak management" },
+    { kicker: "After illness", title: "Clean items the child used", body: "Promptly clean and disinfect bedding, mouthed toys and frequently touched items used by the ill child, using the correct product and contact time.", ref: "AHS Surface Cleaning and Disinfection During GI Outbreaks; AHS Health & Safety Guidelines" },
+  ],
+  [
+    { kicker: "Know the difference", title: "Cleaning, sanitizing and disinfecting are different", body: "Cleaning removes dirt first. Sanitizing reduces germs on food-contact surfaces. Disinfecting is used for higher-risk surfaces and situations.", ref: "AHS Cleaning and Sanitizing Food Contact Surfaces, Equipment, Toys and Other Surfaces" },
+    { kicker: "Correct order", title: "Always clean before sanitizing or disinfecting", body: "Remove debris, wash with detergent, rinse when required, then apply the approved sanitizer or disinfectant.", media: "Four-step cleaning demonstration", ref: "AHS Cleaning and Sanitizing Food Contact Surfaces, Equipment, Toys and Other Surfaces" },
+    { kicker: "Contact time", title: "The surface must stay wet long enough", body: "Read the product label and centre procedure. A product wiped off too soon may not work as intended.", ref: "AHS Cleaning and Sanitizing Food Contact Surfaces, Equipment, Toys and Other Surfaces - product use" },
+    { kicker: "Toy schedule", title: "Mouthed toys are removed immediately", body: "Place mouthed toys in the designated dirty-toy container and clean and sanitize them before another child uses them. Follow the posted schedule for all other toys.", media: "Mouthed-toy procedure photos", ref: "AHS Health & Safety Guidelines for Child Care Facilities - toy cleaning; Appendix cleaning schedules" },
+    { kicker: "Prevent mixing", title: "Keep clean and dirty items separate", body: "Use labelled containers and fresh cloths. Never return an item to play until the full procedure is complete and it is safely dry.", ref: "AHS Cleaning and Sanitizing Food Contact Surfaces, Equipment, Toys and Other Surfaces" },
+  ],
+  [
+    { kicker: "Allergies", title: "Check before every meal and snack", body: "Know each child's allergies, dietary restrictions and emergency plan. Verify the child, food and serving before it leaves the preparation area.", ref: "Bright Learners Orientation, May 2026 - food safety slides; AHS Health & Safety Guidelines" },
+    { kicker: "Temperatures", title: "Keep cold food cold and hot food hot", body: "Use a clean, sanitized thermometer and follow the centre's approved temperature limits, monitoring and corrective-action procedure.", media: "Food temperature demonstration", ref: "AHS Health & Safety Guidelines for Child Care Facilities - food temperature control" },
+    { kicker: "Food from home", title: "Label and store outside food safely", body: "Label food with the child's name and use refrigeration, ice packs or insulated containers when temperature control is required.", ref: "AHS Food From Home: Safe Child Care" },
+    { kicker: "Family style", title: "Serve without sharing germs", body: "Supervise serving, use clean utensils, prevent used utensils from returning to shared dishes and discard food that may be contaminated.", ref: "AHS Family Style Meal Service in Child Care Facilities" },
+    { kicker: "Food-contact surfaces", title: "Wash, rinse, sanitize and air dry", body: "Follow the full procedure before food preparation and after contamination. Keep chemicals away from food and use the correct concentration.", ref: "AHS Cleaning and Sanitizing Food Contact Surfaces, Equipment, Toys and Other Surfaces" },
+  ],
+  [
+    { kicker: "Diapering", title: "Prepare before bringing the child", body: "Gather supplies, cover the surface as required and keep one hand on the child. Never leave a child unattended on the change surface.", media: "Diapering procedure video", ref: "AHS Diapering Procedure Poster" },
+    { kicker: "Prevent spread", title: "Use the posted diapering sequence", body: "Remove the soiled diaper, clean the child front to back, dispose safely, redress, wash the child's hands, clean and disinfect the surface, then wash your hands.", ref: "AHS Diapering Procedure Poster" },
+    { kicker: "Medication", title: "Written authorization and the original label are required", body: "Verify the right child, medicine, dose, route and time. Record administration immediately and secure medication from children.", ref: "Alberta Child Care Licensing Handbook - medication; Bright Learners Orientation, May 2026" },
+    { kicker: "Sleep", title: "Use a safe crib and complete checks", body: "Inspect the crib, use approved sleep equipment and follow the child's plan and required supervision. Remove damaged equipment from use.", media: "Crib safety inspection", ref: "AHS Crib Safety Checklist" },
+    { kicker: "Daily care", title: "Routines still require active supervision", body: "Coordinate toileting, laundry, medication and rest routines so no child or group is left without appropriate supervision.", ref: "Bright Learners Orientation, May 2026 - daily routines and supervision" },
+  ],
+  [
+    { kicker: "Positive guidance", title: "Teach the behaviour children need", body: "Use calm redirection, clear expectations, choices and environments that support success. Never shame, threaten or use physical punishment.", ref: "Bright Learners Orientation, May 2026 - slides 51-54; Alberta Child Care Licensing Handbook - child guidance" },
+    { kicker: "Incident response", title: "Care first, then document", body: "Provide appropriate first aid, notify the director and family, preserve factual details and complete the required report promptly.", media: "Incident documentation example", ref: "Bright Learners Orientation, May 2026 - incident reporting; Alberta Child Care Licensing Handbook" },
+    { kicker: "Serious events", title: "Escalate immediately", body: "A serious injury, missing child, emergency service involvement or other reportable incident requires immediate director involvement and the applicable reporting process.", ref: "Alberta Child Care Licensing Handbook - serious incidents" },
+    { kicker: "Emergency readiness", title: "Know exits, attendance and emergency supplies", body: "Know your evacuation route, alternate exit, muster point, emergency contacts and the location of attendance records and emergency bags.", ref: "Bright Learners Orientation, May 2026 - emergency procedures" },
+    { kicker: "During an emergency", title: "Maintain supervision and account for everyone", body: "Follow the centre plan, bring attendance information, count children throughout and do not re-enter until authorized.", media: "Evacuation drill video", ref: "Bright Learners Orientation, May 2026 - emergency procedures; Alberta licensing requirements" },
+  ],
+];
+
+const quizBanks: Record<Province, QuizQuestion[][]> = {
+  AB: [
+    [
+      { id: "ab1-role", prompt: "What should you do when safety instructions are unclear?", options: ["Guess based on experience", "Pause and ask the director", "Wait until the end of the week"], correct: 1, reviewSlide: 1, explanation: "Safety questions must be clarified before continuing.", ref: "Bright Learners Orientation, May 2026 - slides 8-14" },
+      { id: "ab1-family", prompt: "Which is appropriate family communication?", options: ["Share another child's information", "Repeat important care instructions to confirm them", "Avoid pickup updates"], correct: 1, reviewSlide: 2, explanation: "Confirming instructions prevents misunderstandings while protecting confidentiality.", ref: "Bright Learners Orientation, May 2026 - slides 11-12, 36-39" },
+      { id: "ab1-first", prompt: "What must be confirmed when welcoming a new child?", options: ["Allergies and care instructions", "Only the pickup time", "Nothing until the second day"], correct: 0, reviewSlide: 4, explanation: "Important care and allergy information must be understood from the start.", ref: "Bright Learners Orientation, May 2026 - slides 56-58" },
+    ],
+    [
+      { id: "ab2-plan", prompt: "What should planning begin with?", options: ["A fixed craft copied online", "Observation of the children", "A decoration theme"], correct: 1, reviewSlide: 0, explanation: "Emergent planning starts with observed interests and questions.", ref: "Bright Learners Orientation, May 2026 - slides 16-27" },
+      { id: "ab2-doc", prompt: "Good documentation explains:", options: ["Only what materials were used", "The learning visible in the experience", "Which educator made the display"], correct: 1, reviewSlide: 3, explanation: "Documentation connects observations to learning.", ref: "Bright Learners Orientation, May 2026 - slides 34-39" },
+      { id: "ab2-photo", prompt: "Photos used for documentation must protect:", options: ["Only the room design", "Children's dignity and privacy", "The activity schedule"], correct: 1, reviewSlide: 3, explanation: "Purposeful photos must respect dignity and privacy.", ref: "Bright Learners Orientation, May 2026 - slides 36-39" },
+    ],
+    [
+      { id: "ab3-supervision", prompt: "Active supervision means:", options: ["Staying seated while children play", "Seeing, hearing, scanning and anticipating", "Completing paperwork nearby"], correct: 1, reviewSlide: 0, explanation: "Active supervision requires continuous awareness and positioning.", ref: "Bright Learners Orientation, May 2026 - slides 40-43" },
+      { id: "ab3-count", prompt: "When are headcounts required?", options: ["Only at closing", "At every transition", "Only on field trips"], correct: 1, reviewSlide: 1, explanation: "Transitions are high-risk moments and require verified counts.", ref: "Bright Learners Orientation, May 2026 - slides 40-43" },
+      { id: "ab3-play", prompt: "What should happen to unsafe play equipment?", options: ["Use it carefully", "Block access and report it", "Wait for the monthly check"], correct: 1, reviewSlide: 4, explanation: "Unsafe equipment must be taken out of use immediately.", ref: "AHS Inspection and Maintenance of Playspaces" },
+    ],
+    [
+      { id: "ab4-sick", prompt: "A sick child waiting for pickup must be:", options: ["Left to rest alone", "Separated comfortably and supervised", "Returned to group play"], correct: 1, reviewSlide: 1, explanation: "The child remains supervised while separated from the group.", ref: "AHS Health & Safety Guidelines - illness management" },
+      { id: "ab4-record", prompt: "Illness records should contain:", options: ["A diagnosis", "Observed facts, actions and times", "Rumours from other families"], correct: 1, reviewSlide: 2, explanation: "Educators document observations and actions, not diagnoses.", ref: "AHS Health & Safety Guidelines - records" },
+      { id: "ab4-pattern", prompt: "Several similar illnesses should be reported first to:", options: ["The director", "Social media", "No one"], correct: 0, reviewSlide: 3, explanation: "The director coordinates outbreak assessment and official direction.", ref: "AHS Health & Safety Guidelines - outbreak management" },
+    ],
+    [
+      { id: "ab5-order", prompt: "What happens before sanitizing or disinfecting?", options: ["Air drying", "Cleaning", "Storage"], correct: 1, reviewSlide: 1, explanation: "Dirt must be removed before the germ-reduction step.", ref: "AHS Cleaning and Sanitizing Food Contact Surfaces, Equipment, Toys and Other Surfaces" },
+      { id: "ab5-mouth", prompt: "A mouthed toy should be:", options: ["Returned to the shelf", "Removed until cleaned and sanitized", "Wiped on a towel"], correct: 1, reviewSlide: 3, explanation: "Mouthed toys cannot be shared before the full procedure.", ref: "AHS Health & Safety Guidelines - toy cleaning" },
+      { id: "ab5-time", prompt: "Why does contact time matter?", options: ["It lets the product work as directed", "It changes the toy colour", "It makes rinsing optional"], correct: 0, reviewSlide: 2, explanation: "The surface must remain wet for the labelled time.", ref: "AHS cleaning and sanitizing guidance" },
+    ],
+    [
+      { id: "ab6-allergy", prompt: "Before serving food, educators must verify:", options: ["Only the menu name", "Child, food and allergy information", "Only the room number"], correct: 1, reviewSlide: 0, explanation: "Every serving must be checked against the child's needs.", ref: "AHS Health & Safety Guidelines - food safety" },
+      { id: "ab6-home", prompt: "Food from home should be:", options: ["Unlabelled", "Labelled and temperature-controlled when needed", "Stored with cleaning products"], correct: 1, reviewSlide: 2, explanation: "Identification and safe temperature control are required.", ref: "AHS Food From Home: Safe Child Care" },
+      { id: "ab6-surface", prompt: "A food-contact surface finishes the procedure by:", options: ["Air drying", "Being wiped with a used towel", "Being immediately covered"], correct: 0, reviewSlide: 4, explanation: "Air drying avoids recontamination.", ref: "AHS Cleaning and Sanitizing Food Contact Surfaces" },
+    ],
+    [
+      { id: "ab7-diaper", prompt: "When may a child be left alone on a change surface?", options: ["For a few seconds", "Never", "While supplies are gathered"], correct: 1, reviewSlide: 0, explanation: "Prepare supplies first and maintain physical supervision.", ref: "AHS Diapering Procedure Poster" },
+      { id: "ab7-med", prompt: "Medication requires:", options: ["A verbal message only", "Written authorization and the original label", "No record for non-prescription products"], correct: 1, reviewSlide: 2, explanation: "Authorization, label verification and documentation protect the child.", ref: "Alberta Child Care Licensing Handbook - medication" },
+      { id: "ab7-crib", prompt: "Damaged sleep equipment must be:", options: ["Used with extra blankets", "Removed from use", "Used only during naps"], correct: 1, reviewSlide: 3, explanation: "Unsafe equipment cannot remain in service.", ref: "AHS Crib Safety Checklist" },
+    ],
+    [
+      { id: "ab8-guidance", prompt: "Which is positive guidance?", options: ["Public shaming", "Calm redirection and clear choices", "Physical punishment"], correct: 1, reviewSlide: 0, explanation: "Guidance teaches skills while protecting dignity.", ref: "Bright Learners Orientation, May 2026 - slides 51-54" },
+      { id: "ab8-incident", prompt: "After immediate care, an incident should be:", options: ["Documented factually and escalated", "Discussed publicly", "Ignored if the child is calm"], correct: 0, reviewSlide: 1, explanation: "Timely factual reporting is part of safe care.", ref: "Alberta Child Care Licensing Handbook - incident records" },
+      { id: "ab8-emergency", prompt: "What must travel with the group during evacuation?", options: ["Room decorations", "Attendance information", "Personal bags"], correct: 1, reviewSlide: 4, explanation: "Attendance information is essential to account for every child.", ref: "Bright Learners emergency procedures" },
+    ],
+  ],
+  SK: [],
+};
 
 function WelcomeLesson() {
   const [slide, setSlide] = useState(0);
@@ -554,9 +677,84 @@ const skLessonSlides: OrientationSlide[][] = [
   ],
 ];
 
-function SaskatchewanModuleLesson({ moduleIndex }: { moduleIndex: number }) {
+const skQuizBanks: QuizQuestion[][] = [
+  [
+    { id: "sk1-status", prompt: "What does Willowgrove's current provisional status require from staff?", options: ["Less documentation", "Consistent practice and complete records", "Different rules each week"], correct: 1, reviewSlide: 3, explanation: "Closer monitoring makes consistent practice and complete records especially important.", ref: "Willowgrove management update - July 2026" },
+    { id: "sk1-plan", prompt: "Saskatchewan learning plans should begin with:", options: ["Children's observed interests", "Identical worksheets", "A fixed monthly craft"], correct: 0, reviewSlide: 1, explanation: "Play and Exploration and emergent curriculum begin with observation.", ref: "Willowgrove Parent Handbook - pages 9-11" },
+    { id: "sk1-hazard", prompt: "When a direction is unclear, educators should:", options: ["Guess", "Ask leadership before proceeding", "Ignore it"], correct: 1, reviewSlide: 2, explanation: "Safety and regulatory questions must be escalated.", ref: "Willowgrove Parent Handbook - pages 5-10 and 46" },
+  ],
+  [
+    { id: "sk2-sick", prompt: "A sick child waiting for pickup must remain:", options: ["Alone", "Comfortable and directly supervised", "In group activities"], correct: 1, reviewSlide: 1, explanation: "Separation never removes the supervision requirement.", ref: "Willowgrove Parent Handbook - page 39" },
+    { id: "sk2-report", prompt: "Which conditions did Public Health reportedly ask Willowgrove to notify them about?", options: ["Pertussis, measles and GI outbreaks", "Every cold", "Only HFMD"], correct: 0, reviewSlide: 2, explanation: "This is site-reported verbal guidance and must be treated as such.", ref: "Site-reported verbal Public Health guidance - June/July 2026" },
+    { id: "sk2-record", prompt: "An illness record should be completed when:", options: ["Symptoms and response are observed", "Only after a diagnosis", "Never"], correct: 0, reviewSlide: 0, explanation: "Observed illness and the centre response must be documented.", ref: "Willowgrove Parent Handbook - pages 37-38" },
+  ],
+  [
+    { id: "sk3-hands", prompt: "When must an educator wash hands after diapering?", options: ["Only if gloves tear", "After every diaper change", "At lunch"], correct: 1, reviewSlide: 0, explanation: "Gloves do not replace handwashing.", ref: "Licensing Consultant direction; Willowgrove Parent Handbook - page 20" },
+    { id: "sk3-table", prompt: "What is the four-step table process?", options: ["Sweep, dry, cover, store", "Remove debris, wash, rinse, sanitize", "Spray and immediately wipe"], correct: 1, reviewSlide: 1, explanation: "All four steps are required.", ref: "Licensing Consultant direction reported by Willowgrove" },
+    { id: "sk3-supervision", prompt: "Cleaning work may begin only when:", options: ["Supervision and ratios remain covered", "Children are nearby", "Paperwork is complete"], correct: 0, reviewSlide: 3, explanation: "Cleaning cannot interrupt active supervision.", ref: "Willowgrove Parent Handbook - pages 42-44" },
+  ],
+  [
+    { id: "sk4-lock", prompt: "Non-emergency medication must be stored:", options: ["On a high open shelf", "In a locked container", "In a staff bag"], correct: 1, reviewSlide: 0, explanation: "Medication containers remain locked when not in use.", ref: "Willowgrove Parent Handbook - page 34; Licensing Consultant direction" },
+    { id: "sk4-form", prompt: "Can medication be given without the completed form?", options: ["Yes, with a text message", "No", "Only once"], correct: 1, reviewSlide: 1, explanation: "Written authorization is required before administration.", ref: "Willowgrove Parent Handbook - pages 34-35" },
+    { id: "sk4-check", prompt: "How many educators verify a dose under the centre procedure?", options: ["One", "Two", "Three"], correct: 1, reviewSlide: 2, explanation: "Two educators verify and sign the record.", ref: "Willowgrove Parent Handbook - page 35" },
+  ],
+  [
+    { id: "sk5-home", prompt: "Food from home must be:", options: ["Labelled and kept at a safe temperature", "Shared freely", "Stored beside chemicals"], correct: 0, reviewSlide: 2, explanation: "Identification and temperature control protect children.", ref: "Willowgrove Parent Handbook - page 32; Licensing Consultant direction" },
+    { id: "sk5-allergy", prompt: "Before serving food, educators check:", options: ["Allergy and dietary information", "Only the menu", "Only the child's age"], correct: 0, reviewSlide: 3, explanation: "Allergy information must be verified before serving.", ref: "Willowgrove Parent Handbook - pages 32-33 and 36" },
+    { id: "sk5-onsite", prompt: "Where are Willowgrove meals and snacks prepared?", options: ["Offsite", "Onsite", "By families only"], correct: 1, reviewSlide: 0, explanation: "The current menu is prepared onsite.", ref: "Revised Menu; Willowgrove Parent Handbook - page 32" },
+  ],
+  [
+    { id: "sk6-count", prompt: "When are headcounts required?", options: ["At each transition", "Only outdoors", "Only at closing"], correct: 0, reviewSlide: 1, explanation: "Counts are confirmed whenever the group moves.", ref: "Willowgrove Parent Handbook - pages 43-44" },
+    { id: "sk6-hazard", prompt: "Staff belongings and plastic bags must be:", options: ["Placed on the floor", "Inaccessible to children", "Stored with toys"], correct: 1, reviewSlide: 2, explanation: "The licensing direction names these as hazardous items.", ref: "Licensing Consultant direction; Willowgrove Parent Handbook - page 42" },
+    { id: "sk6-task", prompt: "While supervising, an educator should:", options: ["Focus on paperwork", "Continuously scan and position", "Use a personal phone"], correct: 1, reviewSlide: 0, explanation: "Supervision is the primary task.", ref: "Willowgrove Parent Handbook - pages 42-44" },
+  ],
+  [
+    { id: "sk7-point", prompt: "Where is Willowgrove's stated muster point?", options: ["Island Boulevard/front parking area", "Inside the kitchen", "The staff room"], correct: 0, reviewSlide: 1, explanation: "Staff must know the centre's specified evacuation location.", ref: "Willowgrove Parent Handbook - page 40" },
+    { id: "sk7-drill", prompt: "How often are fire drills documented?", options: ["Monthly", "Every five years", "Only after an alarm"], correct: 0, reviewSlide: 2, explanation: "The handbook requires monthly fire-drill practice and records.", ref: "Willowgrove Parent Handbook - page 40" },
+    { id: "sk7-record", prompt: "After immediate first aid, staff should:", options: ["Complete the required record and notifications", "Delete notes", "Wait until year end"], correct: 0, reviewSlide: 3, explanation: "Incidents require timely documentation and escalation.", ref: "Willowgrove Parent Handbook - pages 41-42" },
+  ],
+  [
+    { id: "sk8-guide", prompt: "Which is an appropriate guidance practice?", options: ["Calm redirection and choices", "Public shaming", "Physical punishment"], correct: 0, reviewSlide: 0, explanation: "Positive guidance teaches skills while protecting dignity.", ref: "Bright Learners Orientation - slides 51-54" },
+    { id: "sk8-report", prompt: "Who must make a child-protection report when they have reasonable grounds?", options: ["The person with the concern", "Only the director", "Only the family"], correct: 0, reviewSlide: 2, explanation: "The duty to report cannot be delegated.", ref: "Willowgrove Parent Handbook - page 45; Saskatchewan child-protection law" },
+    { id: "sk8-family", prompt: "Should staff notify the family before a protection report?", options: ["Always", "Not when doing so is prohibited or could increase risk", "Only by social media"], correct: 1, reviewSlide: 3, explanation: "Protect the child and follow child-protection direction.", ref: "Willowgrove Parent Handbook - page 45" },
+  ],
+];
+
+function CourseModuleLesson({ province, moduleIndex, onAttempt }: { province: Province; moduleIndex: number; onAttempt: (score: number, answers: Record<string, number>) => Promise<void> }) {
   const [slide, setSlide] = useState(0);
-  return <LessonWorkspace slides={skLessonSlides[moduleIndex]} slide={slide} setSlide={setSlide} />;
+  const slides = province === "AB" ? abLessonSlides[moduleIndex] : skLessonSlides[moduleIndex];
+  const questions = province === "AB" ? quizBanks.AB[moduleIndex] : skQuizBanks[moduleIndex];
+  const quiz = <ModuleQuiz questions={questions} moduleIndex={moduleIndex} goToSlide={setSlide} onAttempt={onAttempt} />;
+  return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} quiz={quiz} />;
+}
+
+function ModuleQuiz({ questions, moduleIndex, goToSlide, onAttempt }: { questions: QuizQuestion[]; moduleIndex: number; goToSlide: (slide: number) => void; onAttempt: (score: number, answers: Record<string, number>) => Promise<void> }) {
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [result, setResult] = useState<{ score: number; missed: QuizQuestion[] } | null>(null);
+  const [saving, setSaving] = useState(false);
+  async function submit() {
+    const missed = questions.filter((question) => answers[question.id] !== question.correct);
+    const score = Math.round(((questions.length - missed.length) / questions.length) * 100);
+    setSaving(true);
+    try {
+      await onAttempt(score, answers);
+      setResult({ score, missed });
+    } finally {
+      setSaving(false);
+    }
+  }
+  return <section className="module-quiz">
+    <p className="eyebrow">Module {moduleIndex + 1} knowledge check</p>
+    <h3>Pass every question to complete this module.</h3>
+    <p>Your answers and submission time are saved. If you miss something, we will take you to the exact lesson slide to review.</p>
+    {questions.map((question, questionIndex) => <fieldset key={question.id}>
+      <legend>{questionIndex + 1}. {question.prompt}</legend>
+      {question.options.map((option, optionIndex) => <label key={option}><input type="radio" name={question.id} checked={answers[question.id] === optionIndex} onChange={() => { setAnswers((current) => ({ ...current, [question.id]: optionIndex })); setResult(null); }} />{option}</label>)}
+    </fieldset>)}
+    <button className="primary-button" disabled={Object.keys(answers).length !== questions.length || saving} onClick={submit}>{saving ? "Saving attempt…" : "Submit knowledge check"}</button>
+    {result && result.score === 100 && <div className="quiz-result passed" role="status"><b>100% - module complete.</b><p>Your result and completion time have been saved. The next module is now unlocked.</p></div>}
+    {result && result.score < 100 && <div className="quiz-result needs-review" role="status"><b>{result.score}% - review required.</b><p>You need 100% to pass. Review these exact slides, then return and answer the missed questions again.</p>{result.missed.map((question) => <article key={question.id}><div><strong>Review Module {moduleIndex + 1}, Slide {question.reviewSlide + 1}</strong><span>{question.explanation}</span><small>{question.ref}</small></div><button className="outline-button" onClick={() => goToSlide(question.reviewSlide)}>Review slide {question.reviewSlide + 1}</button></article>)}</div>}
+  </section>;
 }
 
 function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: string; setAnswer: (value: string) => void; checkAnswer: () => void; message: string }) {
