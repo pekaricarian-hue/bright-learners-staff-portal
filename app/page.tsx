@@ -484,7 +484,10 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
       const rect = target.getBoundingClientRect();
       const width = Math.min(430, window.innerWidth - 32);
       const left = Math.min(Math.max(16, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 16);
-      const estimatedHeight = 315;
+      // Reserve enough room for the complete card, including its navigation
+      // buttons. The previous estimate could place taller admin steps partly
+      // below the viewport.
+      const estimatedHeight = 390;
       const fitsBelow = rect.bottom + 18 + estimatedHeight <= window.innerHeight - 16;
       const top = fitsBelow ? rect.bottom + 18 : Math.max(16, rect.top - estimatedHeight - 18);
       setPosition({ top, left, arrow: fitsBelow ? "top" : "bottom" });
