@@ -20,6 +20,7 @@ import {
 import { arrayUnion, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import InspectionWorkflow from "./inspection-workflow";
+import ExitConfirmation from "./exit-confirmation";
 
 type View = "dashboard" | "employee" | "resources" | "director" | "admin";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
@@ -609,6 +610,7 @@ function EmployeeView({ userId, location, province }: { userId: string; location
   const [moduleSlides, setModuleSlides] = useState<Record<string, number>>({});
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
   const [lessonOpen, setLessonOpen] = useState(false);
+  const [lessonExitOpen, setLessonExitOpen] = useState(false);
   const [favorites, setFavorites] = useState<number[]>([]);
   const modules = province === "AB" ? albertaModules : saskatchewanModules;
   const completion = Math.round((completedModules.length / modules.length) * 100);
@@ -699,11 +701,17 @@ function EmployeeView({ userId, location, province }: { userId: string; location
 
     {selectedModule !== null && lessonOpen && <div className="lesson-backdrop" role="dialog" aria-modal="true" aria-labelledby="lesson-title">
       <section className="lesson-drawer">
-        <button className="lesson-close" onClick={() => { setLessonOpen(false); setSelectedModule(null); }} aria-label="Close lesson">×</button>
+        <button className="lesson-close" onClick={() => setLessonExitOpen(true)} aria-label="Save progress and exit module">×</button>
         <p className="eyebrow">Module {selectedModule + 1} • {province === "AB" ? "Alberta" : "Saskatchewan"} orientation</p>
         <h2 id="lesson-title">{modules[selectedModule].title}</h2>
         <CourseModuleLesson province={province} moduleIndex={selectedModule} initialSlide={completedModules.includes(selectedModule) ? 0 : moduleSlides[String(selectedModule)] || 0} onSlideChange={(slideIndex) => saveSlide(selectedModule, slideIndex)} onAttempt={(score, answers) => recordAttempt(selectedModule, score, answers)} />
       </section>
+      {lessonExitOpen && <ExitConfirmation
+        title="Save this module and exit?"
+        message="Your current slide and completed work are saved. You can resume this module from My Learning whenever you are ready."
+        stay={() => setLessonExitOpen(false)}
+        saveAndExit={() => { setLessonExitOpen(false); setLessonOpen(false); setSelectedModule(null); }}
+      />}
     </div>}
   </div>;
 }

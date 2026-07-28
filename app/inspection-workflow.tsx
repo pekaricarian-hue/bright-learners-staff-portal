@@ -5,6 +5,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { monthlyInspectionSections } from "./inspection-data";
+import ExitConfirmation from "./exit-confirmation";
 
 type Result = "pass" | "fail" | "na";
 type Response = {
@@ -34,6 +35,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
   const [overallNotes, setOverallNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingItem, setUploadingItem] = useState("");
+  const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [message, setMessage] = useState("Loading saved inspection...");
   const pointerId = `${userId}_${safe(location)}`;
   const allItems = useMemo(() => monthlyInspectionSections.flatMap((section) => section.items), []);
@@ -86,7 +88,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
   }, [directorName, location, pointerId, userId]);
 
   async function persist(nextResponses: Record<string, Response>, nextSection = sectionIndex, nextNotes = overallNotes) {
-    if (!inspectionId) return;
+    if (!inspectionId) return false;
     setSaving(true);
     try {
       await setDoc(doc(db, "inspections", inspectionId), {
@@ -97,8 +99,10 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         updatedAt: serverTimestamp(),
       }, { merge: true });
       setMessage("Progress saved.");
+      return true;
     } catch {
       setMessage("Save failed. Your answers remain on this screen; try again before leaving.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -150,6 +154,14 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     document.querySelector(".inspection-workflow")?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  async function saveAndExit() {
+    const saved = await persist(responses, sectionIndex, overallNotes);
+    if (saved) {
+      setExitConfirmationOpen(false);
+      close();
+    }
+  }
+
   async function submitInspection() {
     const unanswered = allItems.filter((item) => !responses[item.id]?.result);
     const undocumentedExceptions = allItems.filter((item) =>
@@ -189,7 +201,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     <section className="inspection-workflow" role="dialog" aria-modal="true" aria-labelledby="inspection-title">
       <header className="inspection-workflow-header">
         <div><p className="eyebrow">Monthly self-assessment · {location}</p><h1 id="inspection-title">{section.title}</h1><span>Section {sectionIndex + 1} of {monthlyInspectionSections.length}</span></div>
-        <button className="inspection-close" onClick={close} aria-label="Close and keep draft">×</button>
+        <button className="inspection-close" onClick={() => setExitConfirmationOpen(true)} aria-label="Save progress and exit inspection">×</button>
       </header>
       <div className="inspection-progress"><i style={{ width: `${completionPercent}%` }} /></div>
       <div className="inspection-progress-copy"><b>{answered} of {allItems.length} answered</b><span>{failed} follow-up{failed === 1 ? "" : "s"} · {saving ? "Saving..." : message}</span></div>
@@ -226,5 +238,12 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         {sectionIndex < monthlyInspectionSections.length - 1 ? <button className="primary-button" onClick={() => void moveSection(sectionIndex + 1)}>Save & next section →</button> : <button className="primary-button" disabled={saving} onClick={() => void submitInspection()}>Complete inspection →</button>}
       </footer>
     </section>
+    {exitConfirmationOpen && <ExitConfirmation
+      title="Save this inspection and exit?"
+      message="Your answers, notes, photos and current section will be saved. You can resume this inspection later from the same location."
+      saving={saving}
+      stay={() => setExitConfirmationOpen(false)}
+      saveAndExit={saveAndExit}
+    />}
   </div>;
 }
