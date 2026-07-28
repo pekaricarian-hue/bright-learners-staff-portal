@@ -16,6 +16,7 @@ import { auth } from "./firebase";
 
 type View = "dashboard" | "employee" | "resources" | "director" | "admin";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
+type Province = "AB" | "SK";
 
 const albertaModules = [
   { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "⌂" },
@@ -63,6 +64,7 @@ export default function Home() {
   const [view, setView] = useState<View>("dashboard");
   const [portalMode, setPortalMode] = useState<PortalMode>("chooser");
   const [location, setLocation] = useState("Sundance");
+  const [assignedLocation, setAssignedLocation] = useState<string | null>(null);
   const signedInEmail = user?.email?.toLowerCase() ?? "";
   const canAdmin = executiveEmails.has(signedInEmail);
   const canInspect = canAdmin || Boolean(directorLocations[signedInEmail]);
@@ -72,7 +74,15 @@ export default function Home() {
     setPortalMode("chooser");
     setView("dashboard");
     const nextEmail = next?.email?.toLowerCase() ?? "";
-    if (directorLocations[nextEmail]) setLocation(directorLocations[nextEmail]);
+    const directorLocation = directorLocations[nextEmail];
+    const savedLocation = nextEmail ? window.localStorage.getItem(`bright-learners-location:${nextEmail}`) : null;
+    const nextLocation = directorLocation || savedLocation;
+    if (nextLocation) {
+      setLocation(nextLocation);
+      setAssignedLocation(nextLocation);
+    } else {
+      setAssignedLocation(null);
+    }
     setLoading(false);
   }), []);
 
@@ -141,6 +151,15 @@ export default function Home() {
     );
   }
 
+  if (!assignedLocation) {
+    return <LocationAssignment name={user.displayName || "Team member"} assign={(selectedLocation) => {
+      window.localStorage.setItem(`bright-learners-location:${signedInEmail}`, selectedLocation);
+      setLocation(selectedLocation);
+      setAssignedLocation(selectedLocation);
+    }} signOutUser={() => signOut(auth)} />;
+  }
+
+  const assignedProvince: Province = assignedLocation === "Willowgrove" ? "SK" : "AB";
   const activePortal = portalMode === "chooser" && !canInspect ? "learning" : portalMode;
   if (activePortal === "chooser") {
     return <PortalChooser name={user.displayName || "Team member"} canAdmin={canAdmin} choose={(portal) => {
@@ -163,9 +182,9 @@ export default function Home() {
           <div className="account-actions">{canInspect && <button onClick={() => setPortalMode("chooser")}>Switch portal</button>}<button onClick={() => signOut(auth)}>Sign out</button></div>
         </header>
 
-        {activePortal === "learning" && view === "dashboard" && <DashboardView name={user.displayName || "Team member"} setView={setView} />}
-        {activePortal === "learning" && view === "employee" && <EmployeeView />}
-        {activePortal === "learning" && view === "resources" && <ResourcesView />}
+        {activePortal === "learning" && view === "dashboard" && <DashboardView name={user.displayName || "Team member"} location={assignedLocation} province={assignedProvince} setView={setView} />}
+        {activePortal === "learning" && view === "employee" && <EmployeeView location={assignedLocation} province={assignedProvince} />}
+        {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
         {activePortal === "inspection" && <DirectorView location={location} setLocation={setLocation} />}
         {activePortal === "admin" && <AdminView />}
       </section>
@@ -173,15 +192,20 @@ export default function Home() {
   );
 }
 
+function LocationAssignment({ name, assign, signOutUser }: { name: string; assign: (location: string) => void; signOutUser: () => void }) {
+  const [selected, setSelected] = useState("");
+  return <main className="location-assignment"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><p className="eyebrow">Set up your learning path</p><h1>Which academy do you work at, {name.split(" ")[0]}?</h1><p>Your location assigns the correct provincial course. You will not be able to switch provinces yourself after continuing.</p><label>Bright Learners location<select value={selected} onChange={(event) => setSelected(event.target.value)}><option value="">Choose your location</option>{locations.map((academy) => <option key={academy} value={academy}>{academy}{academy === "Willowgrove" ? " — Saskatchewan" : " — Alberta"}</option>)}</select></label><button className="brand-button" disabled={!selected} onClick={() => assign(selected)}>Assign my course →</button><small>Selected the wrong location? Ask an administrator to update your assignment.</small></section></main>;
+}
+
 function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; canAdmin: boolean; choose: (portal: PortalMode) => void; signOutUser: () => void }) {
   return <main className="portal-chooser"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><p className="eyebrow">Private staff access</p><h1>Where would you like to go, {name.split(" ")[0]}?</h1><p>Learning and facility inspections are separate workspaces with different tools and records.</p><div className="portal-choice-grid"><button onClick={() => choose("learning")}><span className="choice-icon learning-choice">⌂</span><small>For all staff</small><h2>Employee Learning</h2><p>Complete onboarding modules, take assessments, review resources and download certificates.</p><b>Open learning portal →</b></button><button onClick={() => choose("inspection")}><span className="choice-icon inspection-choice">✓</span><small>For directors</small><h2>Director Inspections</h2><p>Run facility checklists, document follow-ups, attach evidence and export inspection records.</p><b>Open inspection portal →</b></button>{canAdmin && <button onClick={() => choose("admin")}><span className="choice-icon admin-choice">A</span><small>For executives</small><h2>Admin Console</h2><p>Manage staff access, courses, checklists, deadlines and organization-wide compliance.</p><b>Open admin console →</b></button>}</div></section></main>;
 }
 
-function DashboardView({ name, setView }: { name: string; setView: (view: View) => void }) {
+function DashboardView({ name, location, province, setView }: { name: string; location: string; province: Province; setView: (view: View) => void }) {
   return <div className="content dashboard-content">
-    <section className="dashboard-greeting"><div><p className="eyebrow">Staff learning portal</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your onboarding, find a policy, or complete today’s facility work.</p></div><div className="dashboard-sun" aria-hidden="true">☼</div></section>
+    <section className="dashboard-greeting"><div><p className="eyebrow">{location} • {province === "SK" ? "Saskatchewan" : "Alberta"} course</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your assigned onboarding or find a policy for your academy.</p></div><div className="dashboard-sun" aria-hidden="true">☼</div></section>
     <div className="dashboard-stat-grid">
-      <article className="pastel-blue"><span className="line-symbol">✓</span><b>1 of 6</b><strong>Modules complete</strong><small>Your onboarding progress</small></article>
+      <article className="pastel-blue"><span className="line-symbol">✓</span><b>1 of {province === "SK" ? 8 : 6}</b><strong>Modules complete</strong><small>Your onboarding progress</small></article>
       <article className="pastel-green"><span className="line-symbol">◎</span><b>100%</b><strong>Required pass mark</strong><small>Every knowledge check</small></article>
       <article className="pastel-yellow"><span className="line-symbol">↗</span><b>120</b><strong>Learning points</strong><small>Earned so far</small></article>
       <article className="pastel-lilac"><span className="line-symbol">◷</span><b>12 min</b><strong>Next lesson</strong><small>Welcome to Bright Learners</small></article>
@@ -193,7 +217,7 @@ function DashboardView({ name, setView }: { name: string; setView: (view: View) 
   </div>;
 }
 
-function ResourcesView() {
+function ResourcesView({ location, province }: { location: string; province: Province }) {
   const resources = [
     ["Health & safety", "AHS childcare health and safety guidance", "AB"],
     ["Cleaning & disinfecting", "Toy, surface and equipment procedures", "AB"],
@@ -202,11 +226,11 @@ function ResourcesView() {
     ["Communicable disease", "School and child care centre guidance", "SK"],
     ["Bright Learners orientation", "Company expectations and program philosophy", "BLA"],
   ];
-  return <div className="content resources-content"><div className="page-intro"><p className="eyebrow">Reference library</p><h1>Resources</h1><p>Find the official policy or Bright Learners guide you need without searching through email folders.</p></div><div className="resource-grid">{resources.map(([title, description, province], index) => <article key={title}><span className={`resource-icon resource-${index + 1}`}>{index + 1}</span><small>{province} resource</small><h2>{title}</h2><p>{description}</p><button>Open resource →</button></article>)}</div></div>;
+  const assignedResources = resources.filter((resource) => resource[2] === province || resource[2] === "BLA");
+  return <div className="content resources-content"><div className="page-intro"><p className="eyebrow">{location} reference library</p><h1>Resources</h1><p>Only your assigned provincial policies and Bright Learners guides are shown here.</p></div><div className="resource-grid">{assignedResources.map(([title, description, resourceProvince], index) => <article key={title}><span className={`resource-icon resource-${index + 1}`}>{index + 1}</span><small>{resourceProvince} resource</small><h2>{title}</h2><p>{description}</p><button>Open resource →</button></article>)}</div></div>;
 }
 
-function EmployeeView() {
-  const [province, setProvince] = useState<"AB" | "SK">("AB");
+function EmployeeView({ location, province }: { location: string; province: Province }) {
   const [completedCount, setCompletedCount] = useState(1);
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
   const [lessonOpen, setLessonOpen] = useState(false);
@@ -227,12 +251,11 @@ function EmployeeView() {
 
   return <div className="content learning-content">
     <section className="learning-intro">
-      <div><p className="handwritten">Your learning path</p><h2>{province === "AB" ? "Alberta employee orientation" : "Saskatchewan - Willowgrove orientation"}</h2><p>Each provincial course combines Bright Learners procedures with the rules and public-health guidance that apply to that location.</p></div>
+      <div><p className="handwritten">Your learning path</p><h2>{location} • {province === "AB" ? "Alberta employee orientation" : "Saskatchewan employee orientation"}</h2><p>This is the course assigned to your academy. It combines Bright Learners procedures with the rules and public-health guidance that apply to your location.</p></div>
       <div className="course-progress"><b>{completion}%</b><span>{completedCount} of {modules.length} complete</span></div>
     </section>
-    <section className="province-switcher" aria-label="Provincial course selector"><div><p className="eyebrow">Compare courses</p><h3>{province === "AB" ? "Alberta requirements" : "Saskatchewan requirements"}</h3></div><div><button className={province === "AB" ? "active" : ""} onClick={() => { setProvince("AB"); setSelectedModule(null); }}>Alberta</button><button className={province === "SK" ? "active" : ""} onClick={() => { setProvince("SK"); setSelectedModule(null); }}>Saskatchewan</button></div></section>
     {province === "SK" && <section className="sk-status-alert"><span>SK</span><div><b>Willowgrove is operating under a provisional licence.</b><p>Close monitoring is expected for six months. The Ministry licence copy is still pending. Site directions and verbal Public Health guidance are identified separately from written requirements.</p></div></section>}
-    <ProvinceComparison province={province} />
+    <aside className="course-assignment-note"><b>{province === "SK" ? "Saskatchewan" : "Alberta"} course assigned through {location}.</b><span>Need a different assignment? Contact an administrator.</span></aside>
 
     <section className="professional-modules" aria-label="Course modules">
       <div className="module-list-heading"><div><p className="eyebrow">Required learning</p><h3>Your modules</h3></div><span>Complete in order</span></div>
@@ -282,10 +305,6 @@ function EmployeeView() {
 }
 
 type OrientationSlide = { kicker: string; title: string; body: string; points?: string[]; media?: string; ref: string };
-
-function ProvinceComparison({ province }: { province: "AB" | "SK" }) {
-  return <section className="province-comparison"><div className={province === "AB" ? "selected" : ""}><span>AB</span><div><b>Alberta course</b><p>AHS childcare guidance, Alberta facility-based licensing, FLIGHT curriculum, Alberta inspection records and outbreak direction.</p></div></div><div className={province === "SK" ? "selected" : ""}><span>SK</span><div><b>Saskatchewan course</b><p>SK Child Care Act and Regulations, Play and Exploration, Willowgrove handbook, provisional-licence follow-up and site-specific directions.</p></div></div></section>;
-}
 
 function WelcomeLesson() {
   const [slide, setSlide] = useState(0);
