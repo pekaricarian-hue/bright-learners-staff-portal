@@ -12,11 +12,25 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { auth } from "./firebase";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { auth, db } from "./firebase";
 
 type View = "dashboard" | "employee" | "resources" | "director" | "admin";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 type Province = "AB" | "SK";
+type StaffRole = "employee" | "director" | "admin" | "owner";
+type StaffProfile = {
+  uid: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  role: StaffRole;
+  location: string;
+  province: Province;
+  status: "active";
+  renewalIntervalMonths: 12;
+};
 
 const albertaModules = [
   { title: "Welcome to Bright Learners", eyebrow: "Your role & responsibilities", time: "12 min", colour: "sun", icon: "⌂" },
@@ -45,46 +59,91 @@ const directorLocations: Record<string, string> = {
   "millwoods@brightlearnersacademy.net": "Millwoods",
   "willowgrove@brightlearnersacademy.net": "Willowgrove",
 };
-const executiveEmails = new Set([
-  "pekaric.arian@gmail.com",
+const ownerEmails = new Set(["pekaric.arian@gmail.com"]);
+const adminEmails = new Set(["admin@brightlearnersacademy.net"]);
+const directorEmails = new Set([
+  ...Object.keys(directorLocations),
   "vick@brightlearnersacademy.net",
   "darin@brightlearnersacademy.net",
   "imroz@brightlearnersacademy.net",
   "ruby@brightlearnersacademy.net",
-  "admin@brightlearnersacademy.net",
   "payroll@brightlearnersacademy.net",
 ]);
+
+function roleForEmail(email: string): StaffRole {
+  if (ownerEmails.has(email)) return "owner";
+  if (adminEmails.has(email)) return "admin";
+  if (directorEmails.has(email)) return "director";
+  return "employee";
+}
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [view, setView] = useState<View>("dashboard");
   const [portalMode, setPortalMode] = useState<PortalMode>("chooser");
   const [location, setLocation] = useState("Sundance");
-  const [assignedLocation, setAssignedLocation] = useState<string | null>(null);
   const signedInEmail = user?.email?.toLowerCase() ?? "";
-  const canAdmin = executiveEmails.has(signedInEmail);
-  const canInspect = canAdmin || Boolean(directorLocations[signedInEmail]);
+  const canAdmin = profile?.role === "admin" || profile?.role === "owner";
+  const canInspect = canAdmin || profile?.role === "director";
 
-  useEffect(() => onAuthStateChanged(auth, (next) => {
+  useEffect(() => onAuthStateChanged(auth, async (next) => {
     setUser(next);
+    setProfile(null);
     setPortalMode("chooser");
     setView("dashboard");
-    const nextEmail = next?.email?.toLowerCase() ?? "";
-    const directorLocation = directorLocations[nextEmail];
-    const savedLocation = nextEmail ? window.localStorage.getItem(`bright-learners-location:${nextEmail}`) : null;
-    const nextLocation = directorLocation || savedLocation;
-    if (nextLocation) {
-      setLocation(nextLocation);
-      setAssignedLocation(nextLocation);
-    } else {
-      setAssignedLocation(null);
+    if (next) {
+      try {
+        const snapshot = await getDoc(doc(db, "users", next.uid));
+        if (snapshot.exists()) {
+          const savedProfile = snapshot.data() as StaffProfile;
+          setProfile(savedProfile);
+          setLocation(savedProfile.location);
+        }
+      } catch {
+        setMessage("Your account is signed in, but its staff profile could not be loaded.");
+      }
     }
     setLoading(false);
   }), []);
+
+  async function createProfile(firstName: string, lastName: string, selectedLocation: string) {
+    if (!user || !signedInEmail) return;
+    const finalLocation = directorLocations[signedInEmail] || selectedLocation;
+    const newProfile: StaffProfile = {
+      uid: user.uid,
+      email: signedInEmail,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      role: roleForEmail(signedInEmail),
+      location: finalLocation,
+      province: finalLocation === "Willowgrove" ? "SK" : "AB",
+      status: "active",
+      renewalIntervalMonths: 12,
+    };
+    await setDoc(doc(db, "users", user.uid), {
+      ...newProfile,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastSignInAt: serverTimestamp(),
+    });
+    await setDoc(doc(db, "progress", `${user.uid}_${newProfile.province.toLowerCase()}-orientation`), {
+      userId: user.uid,
+      courseId: `${newProfile.province.toLowerCase()}-orientation`,
+      completedModules: [],
+      currentModule: 0,
+      renewalIntervalMonths: 12,
+      assignedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    setProfile(newProfile);
+    setLocation(finalLocation);
+  }
 
   async function emailLogin(event: React.FormEvent) {
     event.preventDefault();
@@ -151,18 +210,15 @@ export default function Home() {
     );
   }
 
-  if (!assignedLocation) {
-    return <LocationAssignment name={user.displayName || "Team member"} assign={(selectedLocation) => {
-      window.localStorage.setItem(`bright-learners-location:${signedInEmail}`, selectedLocation);
-      setLocation(selectedLocation);
-      setAssignedLocation(selectedLocation);
-    }} signOutUser={() => signOut(auth)} />;
+  if (!profile) {
+    return <ProfileSetup user={user} fixedLocation={directorLocations[signedInEmail]} save={createProfile} signOutUser={() => signOut(auth)} />;
   }
 
-  const assignedProvince: Province = assignedLocation === "Willowgrove" ? "SK" : "AB";
+  const assignedLocation = profile.location;
+  const assignedProvince = profile.province;
   const activePortal = portalMode === "chooser" && !canInspect ? "learning" : portalMode;
   if (activePortal === "chooser") {
-    return <PortalChooser name={user.displayName || "Team member"} canAdmin={canAdmin} choose={(portal) => {
+    return <PortalChooser name={profile.displayName} canAdmin={canAdmin} choose={(portal) => {
       setPortalMode(portal);
       setView(portal === "inspection" ? "director" : portal === "admin" ? "admin" : "dashboard");
     }} signOutUser={() => signOut(auth)} />;
@@ -178,11 +234,11 @@ export default function Home() {
             {activePortal === "inspection" && <><span className="portal-name">Director Inspection Portal</span><button className="active" onClick={() => setView("director")}>Inspection dashboard</button></>}
             {activePortal === "admin" && <><span className="portal-name">Administration Console</span><button className="active" onClick={() => setView("admin")}>Organization overview</button></>}
           </nav>
-          <div className="user-chip"><span>{(user.displayName || user.email || "Staff")[0].toUpperCase()}</span><div><b>{user.displayName || "Team member"}</b><small>{user.email}</small></div></div>
+          <div className="user-chip"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></div>
           <div className="account-actions">{canInspect && <button onClick={() => setPortalMode("chooser")}>Switch portal</button>}<button onClick={() => signOut(auth)}>Sign out</button></div>
         </header>
 
-        {activePortal === "learning" && view === "dashboard" && <DashboardView name={user.displayName || "Team member"} location={assignedLocation} province={assignedProvince} setView={setView} />}
+        {activePortal === "learning" && view === "dashboard" && <DashboardView name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} />}
         {activePortal === "learning" && view === "employee" && <EmployeeView location={assignedLocation} province={assignedProvince} />}
         {activePortal === "learning" && view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} />}
         {activePortal === "inspection" && <DirectorView location={location} setLocation={setLocation} />}
@@ -192,9 +248,14 @@ export default function Home() {
   );
 }
 
-function LocationAssignment({ name, assign, signOutUser }: { name: string; assign: (location: string) => void; signOutUser: () => void }) {
+function ProfileSetup({ user, fixedLocation, save, signOutUser }: { user: User; fixedLocation?: string; save: (firstName: string, lastName: string, location: string) => Promise<void>; signOutUser: () => void }) {
+  const displayParts = (user.displayName || "").trim().split(/\s+/);
+  const [firstName, setFirstName] = useState(displayParts[0] || "");
+  const [lastName, setLastName] = useState(displayParts.slice(1).join(" "));
   const [selected, setSelected] = useState("");
-  return <main className="location-assignment"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><p className="eyebrow">Set up your learning path</p><h1>Which academy do you work at, {name.split(" ")[0]}?</h1><p>Your location assigns the correct provincial course. You will not be able to switch provinces yourself after continuing.</p><label>Bright Learners location<select value={selected} onChange={(event) => setSelected(event.target.value)}><option value="">Choose your location</option>{locations.map((academy) => <option key={academy} value={academy}>{academy}{academy === "Willowgrove" ? " — Saskatchewan" : " — Alberta"}</option>)}</select></label><button className="brand-button" disabled={!selected} onClick={() => assign(selected)}>Assign my course →</button><small>Selected the wrong location? Ask an administrator to update your assignment.</small></section></main>;
+  const [saving, setSaving] = useState(false);
+  const chosenLocation = fixedLocation || selected;
+  return <main className="location-assignment"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><p className="eyebrow">Set up your staff profile</p><h1>Confirm your name and academy.</h1><p>Your name will appear on your final internal orientation certificate. Your academy permanently assigns the correct provincial course unless an administrator changes it.</p><label>Legal first name<input value={firstName} onChange={(event) => setFirstName(event.target.value)} /></label><label>Legal last name<input value={lastName} onChange={(event) => setLastName(event.target.value)} /></label>{fixedLocation ? <label>Bright Learners location<input value={fixedLocation} disabled /></label> : <label>Bright Learners location<select value={selected} onChange={(event) => setSelected(event.target.value)}><option value="">Choose your location</option>{locations.map((academy) => <option key={academy} value={academy}>{academy}{academy === "Willowgrove" ? " — Saskatchewan" : " — Alberta"}</option>)}</select></label>}<button className="brand-button" disabled={!firstName.trim() || !lastName.trim() || !chosenLocation || saving} onClick={async () => { setSaving(true); try { await save(firstName, lastName, chosenLocation); } finally { setSaving(false); } }}>{saving ? "Saving…" : "Create my profile →"}</button><small>Selected the wrong location? Ask an administrator to update your assignment.</small></section></main>;
 }
 
 function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; canAdmin: boolean; choose: (portal: PortalMode) => void; signOutUser: () => void }) {

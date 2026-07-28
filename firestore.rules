@@ -6,8 +6,38 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function email() {
+      return signedIn() ? request.auth.token.email.lower() : "";
+    }
+
+    function isOwner() {
+      return email() == "pekaric.arian@gmail.com";
+    }
+
     function isAdmin() {
-      return signedIn() && request.auth.token.admin == true;
+      return isOwner() || email() == "admin@brightlearnersacademy.net";
+    }
+
+    function isDirector() {
+      return email() in [
+        "sylvandaycare@gmail.com",
+        "sundance@brightlearnersacademy.net",
+        "midnapore@brightlearnersacademy.net",
+        "millwoods@brightlearnersacademy.net",
+        "willowgrove@brightlearnersacademy.net",
+        "vick@brightlearnersacademy.net",
+        "darin@brightlearnersacademy.net",
+        "imroz@brightlearnersacademy.net",
+        "ruby@brightlearnersacademy.net",
+        "payroll@brightlearnersacademy.net"
+      ];
+    }
+
+    function correctRole() {
+      return (isOwner() && request.resource.data.role == "owner")
+        || (!isOwner() && email() == "admin@brightlearnersacademy.net" && request.resource.data.role == "admin")
+        || (!isAdmin() && isDirector() && request.resource.data.role == "director")
+        || (!isAdmin() && !isDirector() && request.resource.data.role == "employee");
     }
 
     function owns(userId) {
@@ -16,7 +46,17 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if owns(userId) || isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow create: if owns(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == email()
+        && correctRole();
+      allow update: if isAdmin() || (owns(userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.location == resource.data.location
+        && request.resource.data.province == resource.data.province);
+      allow delete: if isAdmin();
     }
 
     match /courses/{courseId} {
