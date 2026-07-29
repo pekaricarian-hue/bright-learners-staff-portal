@@ -2047,6 +2047,74 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 .renewal-renewal-due-soon { color: #9a6a00; }
 .renewal-active { color: #2d7541; }
 
+.schedule-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 24px 0;
+}
+
+.schedule-editor-grid .admin-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.schedule-editor-grid label {
+  display: grid;
+  gap: 7px;
+  color: #17345d;
+  font-weight: 800;
+}
+
+.schedule-editor-grid input {
+  min-height: 48px;
+  padding: 10px 13px;
+  border: 1px solid #bdcbd0;
+  border-radius: 11px;
+  background: white;
+  color: #17345d;
+  font: inherit;
+}
+
+.schedule-save { margin-bottom: 24px; }
+
+.schedule-queue article,
+.inspection-deadline-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.schedule-queue article {
+  padding: 15px 0;
+  border-top: 1px solid #dce4e7;
+}
+
+.schedule-queue b,
+.schedule-queue small { display: block; }
+.schedule-queue small { margin-top: 3px; color: #718095; }
+.schedule-status { padding: 6px 10px; border-radius: 999px; background: #fff0c9; color: #835b00; font-size: 11px; font-weight: 900; }
+.schedule-status.overdue { background: #fbe1dd; color: #a43e37; }
+
+.inspection-deadline-card {
+  margin: 18px 0;
+  padding: 20px 24px;
+  border: 1px solid #bfd8cc;
+  border-radius: 17px;
+  background: #f0f8f2;
+}
+
+.inspection-deadline-card.due-soon {
+  border-color: #e8c46d;
+  background: #fff8e5;
+}
+
+.inspection-deadline-card h2,
+.inspection-deadline-card p { margin: 3px 0; }
+.inspection-deadline-card > span { font-weight: 900; }
+.deadline-overdue { border-color: #d96d62 !important; }
+
 @media (max-width: 760px) {
   .completion-module-list { grid-template-columns: 1fr; }
   .course-completion-checklist { padding: 18px; }
@@ -2064,4 +2132,8 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   .certificate-admin-summary { grid-template-columns: 1fr; }
   .certificate-admin-row { grid-template-columns: 44px 1fr; }
   .certificate-admin-row > strong, .certificate-admin-row > div:last-child { grid-column: 2; }
+  .schedule-editor-grid { grid-template-columns: 1fr; }
+  .schedule-queue article { grid-template-columns: auto 1fr; }
+  .schedule-queue article > strong { grid-column: 2; }
+  .inspection-deadline-card { grid-template-columns: 1fr; }
 }

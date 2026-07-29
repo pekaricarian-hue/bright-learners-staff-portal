@@ -26,8 +26,9 @@ import CertificateStatus from "./certificate";
 import CertificateLibrary from "./certificate-library";
 import AdminManagement from "./admin-management";
 import AdminContent from "./admin-content";
+import AdminScheduling from "./admin-scheduling";
 
-type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-staff" | "admin-content" | "admin-inspections" | "admin-certificates";
+type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-staff" | "admin-content" | "admin-scheduling" | "admin-inspections" | "admin-certificates";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 type Province = "AB" | "SK";
 type StaffRole = "employee" | "director" | "admin" | "owner";
@@ -143,6 +144,10 @@ export default function Home() {
     const invitation = invitationSnapshot?.exists() ? invitationSnapshot.data() : null;
     const finalLocation = invitation?.location || directorLocations[signedInEmail] || selectedLocation;
     const assignedRole = invitation?.role || roleForEmail(signedInEmail, user.emailVerified);
+    const scheduleSnapshot = await getDoc(doc(db, "complianceSchedules", "default")).catch(() => null);
+    const onboardingDueDays = scheduleSnapshot?.data()?.onboardingDueDays || 14;
+    const assignedAt = new Date();
+    const dueAt = new Date(assignedAt.getTime() + onboardingDueDays * 86400000);
     const newProfile: StaffProfile = {
       uid: user.uid,
       email: signedInEmail,
@@ -168,7 +173,9 @@ export default function Home() {
       completedModules: [],
       currentModule: 0,
       renewalIntervalMonths: 12,
-      assignedAt: serverTimestamp(),
+      assignedAt,
+      dueAt,
+      dueSoonDays: scheduleSnapshot?.data()?.courseDueSoonDays || 7,
       updatedAt: serverTimestamp(),
     });
     if (invitation) await setDoc(doc(db, "staffInvitations", signedInEmail), { status: "accepted", acceptedBy: user.uid, acceptedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
@@ -346,7 +353,7 @@ export default function Home() {
           <nav aria-label="Portal">
             {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
             {activePortal === "inspection" && <><button data-tour="inspection-dashboard-tab" className={view === "director" ? "active" : ""} onClick={() => setView("director")}>Inspection dashboard</button><button data-tour="inspection-reports-tab" className={view === "inspection-reports" ? "active" : ""} onClick={() => setView("inspection-reports")}>Reports & drafts</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
-            {activePortal === "admin" && <><button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Overview</button><button className={view === "admin-staff" ? "active" : ""} onClick={() => setView("admin-staff")}>Staff & locations</button><button className={view === "admin-content" ? "active" : ""} onClick={() => setView("admin-content")}>Content</button><button data-tour="admin-inspection-records" className={view === "admin-inspections" ? "active" : ""} onClick={() => setView("admin-inspections")}>Inspections</button><button data-tour="admin-certificates" className={view === "admin-certificates" ? "active" : ""} onClick={() => setView("admin-certificates")}>Certificates</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
+            {activePortal === "admin" && <><button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Overview</button><button className={view === "admin-staff" ? "active" : ""} onClick={() => setView("admin-staff")}>Staff & locations</button><button className={view === "admin-content" ? "active" : ""} onClick={() => setView("admin-content")}>Content</button><button className={view === "admin-scheduling" ? "active" : ""} onClick={() => setView("admin-scheduling")}>Schedules</button><button data-tour="admin-inspection-records" className={view === "admin-inspections" ? "active" : ""} onClick={() => setView("admin-inspections")}>Inspections</button><button data-tour="admin-certificates" className={view === "admin-certificates" ? "active" : ""} onClick={() => setView("admin-certificates")}>Certificates</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
           </nav>
           <details className="account-menu">
             <summary className="user-chip" data-tour="profile-menu" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></summary>
@@ -369,6 +376,7 @@ export default function Home() {
         {activePortal === "admin" && view === "admin" && <AdminView setView={setView} />}
         {activePortal === "admin" && view === "admin-staff" && <AdminManagement openContent={() => setView("admin-content")} />}
         {activePortal === "admin" && view === "admin-content" && <AdminContent albertaDefaults={albertaModules} saskatchewanDefaults={saskatchewanModules} />}
+        {activePortal === "admin" && view === "admin-scheduling" && <AdminScheduling />}
         {activePortal === "admin" && view === "admin-inspections" && <InspectionReports userId={user.uid} directorName={profile.displayName} adminMode />}
         {activePortal === "admin" && view === "admin-certificates" && <CertificateLibrary />}
       </section>
@@ -578,6 +586,7 @@ function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; 
 
 function DashboardView({ userId, name, location, province, setView, openCertificates }: { userId: string; name: string; location: string; province: Province; setView: (view: View) => void; openCertificates: () => void }) {
   const [completedModules, setCompletedModules] = useState<number[]>([]);
+  const [dueAt, setDueAt] = useState<Date | null>(null);
   const moduleCount = province === "AB" ? albertaModules.length : saskatchewanModules.length;
   const completion = Math.round((completedModules.length / moduleCount) * 100);
   const progressId = `${userId}_${province.toLowerCase()}-orientation`;
@@ -585,15 +594,19 @@ function DashboardView({ userId, name, location, province, setView, openCertific
   useEffect(() => {
     getDoc(doc(db, "progress", progressId)).then((snapshot) => {
       setCompletedModules(snapshot.exists() ? snapshot.data().completedModules || [] : []);
+      setDueAt(snapshot.data()?.dueAt?.toDate?.() || null);
     }).catch(() => setCompletedModules([]));
   }, [progressId]);
+  const daysRemaining = dueAt ? Math.ceil((dueAt.getTime() - Date.now()) / 86400000) : null;
+  const deadlineLabel = completedModules.length === moduleCount ? "Complete" : !dueAt ? "Not assigned" : daysRemaining! < 0 ? "Overdue" : daysRemaining! <= 7 ? "Due soon" : "Due date";
+  const deadlineDate = dueAt ? new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" }).format(dueAt) : "Set by admin";
 
   return <div className="content dashboard-content">
     <section className="dashboard-greeting"><div><p className="eyebrow">{location} • {province === "SK" ? "Saskatchewan" : "Alberta"} course</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your assigned onboarding or find a policy for your academy.</p></div><div className="dashboard-sun" aria-hidden="true">☼</div></section>
     <div className="dashboard-stat-grid">
       <article data-tour="module-progress" className="pastel-blue"><span className="line-symbol">✓</span><b>8</b><strong>Required modules</strong><small>Your saved progress appears in My Learning</small></article>
       <article className="pastel-green"><span className="line-symbol">◎</span><b>100%</b><strong>Required pass mark</strong><small>Every knowledge check</small></article>
-      <article className="pastel-yellow"><span className="line-symbol">↗</span><b>120</b><strong>Learning points</strong><small>Earned so far</small></article>
+      <article className={`pastel-yellow ${deadlineLabel === "Overdue" ? "deadline-overdue" : ""}`}><span className="line-symbol">!</span><b>{deadlineLabel}</b><strong>Orientation deadline</strong><small>{deadlineDate}</small></article>
       <article className="pastel-lilac"><span className="line-symbol">◷</span><b>12 min</b><strong>Next lesson</strong><small>Welcome to Bright Learners</small></article>
     </div>
     <div className="dashboard-columns">
@@ -1365,12 +1378,38 @@ function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: str
 function DirectorView({ userId, directorName, location, setLocation }: { userId: string; directorName: string; location: string; setLocation: (v: string) => void }) {
   const [workflowOpen, setWorkflowOpen] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
+  const [monthlyStatus, setMonthlyStatus] = useState("Due this month");
+  const [monthlyDetail, setMonthlyDetail] = useState("Monthly inspection has not been submitted.");
+  useEffect(() => {
+    Promise.all([
+      getDocs(collection(db, "inspections")),
+      getDoc(doc(db, "complianceSchedules", "default")),
+    ]).then(([inspectionSnapshot, scheduleSnapshot]) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const completed = inspectionSnapshot.docs.some((item) => {
+        const data = item.data();
+        const completedAt = data.completedAt?.toDate?.();
+        return data.location === location && data.status === "submitted" && completedAt && completedAt >= start;
+      });
+      if (completed) {
+        setMonthlyStatus("Complete");
+        setMonthlyDetail("This month’s inspection has been submitted.");
+        return;
+      }
+      const reminderDay = scheduleSnapshot.data()?.inspectionReminderDay || 20;
+      const secondReminderDay = scheduleSnapshot.data()?.inspectionSecondReminderDay || 25;
+      setMonthlyStatus(now.getDate() >= reminderDay ? "Due soon" : "Due this month");
+      setMonthlyDetail(now.getDate() >= secondReminderDay ? "Second reminder: submit before the first day of next month." : `Submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(new Date(now.getFullYear(), now.getMonth() + 1, 1))}.`);
+    }).catch(() => undefined);
+  }, [location, completionMessage]);
   return <div className="content">
     <section data-tour="inspection-start" className="action-row">
       <div><p className="eyebrow">Inspection location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select><small>Choose the academy where you are completing this inspection.</small></div>
       <button data-tour="inspection-button" className="primary-button" onClick={() => { setCompletionMessage(""); setWorkflowOpen(true); }}>Start or resume monthly inspection</button>
     </section>
     {completionMessage && <p className="inspection-success" role="status">{completionMessage}</p>}
+    <section className={`inspection-deadline-card ${monthlyStatus === "Due soon" ? "due-soon" : ""}`}><div><p className="eyebrow">Monthly schedule</p><h2>{monthlyStatus}</h2><p>{monthlyDetail}</p></div><span>{new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric" }).format(new Date())}</span></section>
     <div className="stat-grid inspection-feature-grid">
       <article><span>86</span><div><b>Checklist items</b><small>Across six audit sections</small></div></article>
       <article><span>✓</span><div><b>Automatic drafts</b><small>Resume unfinished work anytime</small></div></article>
