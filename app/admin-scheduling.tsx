@@ -12,9 +12,13 @@ type Schedule = {
   inspectionReminderDay: number;
   inspectionSecondReminderDay: number;
   inspectionDueDay: number;
+  inspectionDueDate: string;
 };
 type QueueItem = { id: string; type: "Course" | "Inspection" | "Renewal"; person: string; location: string; due: Date; status: "Due soon" | "Overdue" };
 
+const defaultInspectionDue = new Date();
+defaultInspectionDue.setMonth(defaultInspectionDue.getMonth() + 1, 1);
+const defaultInspectionDueDate = `${defaultInspectionDue.getFullYear()}-${String(defaultInspectionDue.getMonth() + 1).padStart(2, "0")}-${String(defaultInspectionDue.getDate()).padStart(2, "0")}`;
 const defaults: Schedule = {
   onboardingDueDays: 14,
   courseDueSoonDays: 7,
@@ -23,11 +27,11 @@ const defaults: Schedule = {
   inspectionReminderDay: 20,
   inspectionSecondReminderDay: 25,
   inspectionDueDay: 1,
+  inspectionDueDate: defaultInspectionDueDate,
 };
 const academyNames = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
 const dateLabel = (date: Date) => new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(date);
 const monthStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
-const previousMonthStart = (date: Date) => new Date(date.getFullYear(), date.getMonth() - 1, 1);
 
 export default function AdminScheduling() {
   const [schedule, setSchedule] = useState<Schedule>(defaults);
@@ -36,7 +40,7 @@ export default function AdminScheduling() {
   const [saving, setSaving] = useState(false);
   const [inspectionTrackingStartedAt, setInspectionTrackingStartedAt] = useState<Date | null>(null);
 
-  async function loadQueue(activeSchedule: Schedule, trackingStartedAt = inspectionTrackingStartedAt) {
+  async function loadQueue(activeSchedule: Schedule) {
     const [usersSnapshot, progressSnapshot, inspectionsSnapshot, certificatesSnapshot] = await Promise.all([
       getDocs(collection(db, "users")),
       getDocs(collection(db, "progress")),
@@ -57,26 +61,17 @@ export default function AdminScheduling() {
       items.push({ id: item.id, type: "Course", person: user.displayName || user.email, location: user.location, due, status: due < now ? "Overdue" : "Due soon" });
     });
     const currentStart = monthStart(now);
-    const inspectionDue = new Date(now.getFullYear(), now.getMonth() + 1, activeSchedule.inspectionDueDay);
-    const previousStart = previousMonthStart(now);
+    const inspectionDue = activeSchedule.inspectionDueDate
+      ? new Date(`${activeSchedule.inspectionDueDate}T23:59:59`)
+      : new Date(now.getFullYear(), now.getMonth() + 1, activeSchedule.inspectionDueDay);
     academyNames.forEach((location) => {
       const submitted = inspectionsSnapshot.docs.some((item) => {
         const data = item.data();
         const completed = data.completedAt?.toDate?.();
         return data.location === location && data.status === "submitted" && completed && completed >= currentStart;
       });
-      if (!submitted && now.getDate() >= activeSchedule.inspectionReminderDay) {
-        items.push({ id: `inspection-current-${location}`, type: "Inspection", person: "Location director", location, due: inspectionDue, status: "Due soon" });
-      }
-      const shouldTrackPreviousMonth = trackingStartedAt && trackingStartedAt < currentStart;
-      const previousSubmitted = inspectionsSnapshot.docs.some((item) => {
-        const data = item.data();
-        const completed = data.completedAt?.toDate?.();
-        return data.location === location && data.status === "submitted" && completed && completed >= previousStart && completed < currentStart;
-      });
-      const previousInspectionDue = new Date(now.getFullYear(), now.getMonth(), activeSchedule.inspectionDueDay);
-      if (shouldTrackPreviousMonth && !previousSubmitted) {
-        items.push({ id: `inspection-overdue-${location}`, type: "Inspection", person: "Location director", location, due: previousInspectionDue, status: now >= previousInspectionDue ? "Overdue" : "Due soon" });
+      if (!submitted) {
+        items.push({ id: `inspection-current-${location}`, type: "Inspection", person: "Location director", location, due: inspectionDue, status: now > inspectionDue ? "Overdue" : "Due soon" });
       }
     });
     certificatesSnapshot.docs.forEach((item) => {
@@ -94,7 +89,7 @@ export default function AdminScheduling() {
       const trackingStartedAt = snapshot.data()?.inspectionTrackingStartedAt?.toDate?.() || null;
       setSchedule(active);
       setInspectionTrackingStartedAt(trackingStartedAt);
-      return loadQueue(active, trackingStartedAt);
+      return loadQueue(active);
     }).catch(() => setMessage("Unable to load compliance scheduling."));
   }, []);
 
@@ -123,7 +118,7 @@ export default function AdminScheduling() {
       }));
       const activeTrackingStart = inspectionTrackingStartedAt || new Date();
       setInspectionTrackingStartedAt(activeTrackingStart);
-      await loadQueue(schedule, activeTrackingStart);
+      await loadQueue(schedule);
       setMessage("Scheduling saved and deadlines applied to existing incomplete course assignments.");
     } catch {
       setMessage("Scheduling could not be applied. Try again.");
@@ -138,7 +133,7 @@ export default function AdminScheduling() {
     <div className="admin-management-summary"><article><b>{summary.overdue}</b><span>Overdue</span></article><article><b>{summary.dueSoon}</b><span>Due soon</span></article><article><b>{summary.inspections}</b><span>Monthly inspections outstanding</span></article></div>
     <div className="schedule-editor-grid">
       <section className="admin-panel"><p className="eyebrow">Employee learning</p><h2>Course deadlines</h2>{numberField("New employee course due after (days)", "onboardingDueDays", 1, 90)}{numberField("Show due soon this many days before", "courseDueSoonDays", 1, 30)}{numberField("Certificate renewal interval (months)", "renewalMonths", 1, 36)}{numberField("Renewal reminder begins (days before)", "renewalReminderDays", 1, 120)}</section>
-      <section className="admin-panel"><p className="eyebrow">Facility compliance</p><h2>Monthly inspection timing</h2>{numberField("First reminder day of month", "inspectionReminderDay", 1, 28)}{numberField("Second reminder day of month", "inspectionSecondReminderDay", 1, 28)}{numberField("Mark overdue on this day of the following month", "inspectionDueDay", 1, 28)}<p className="editor-safety-note">Example: choose 1 to mark the previous month’s inspection overdue on the 1st, or choose 5 to allow directors until the 5th. Admin is included on overdue notifications.</p></section>
+      <section className="admin-panel"><p className="eyebrow">Facility compliance</p><h2>Monthly inspection timing</h2><label>Current inspection due date<input type="date" value={schedule.inspectionDueDate} onChange={(event) => setSchedule({ ...schedule, inspectionDueDate: event.target.value })} /></label>{numberField("First reminder day of month", "inspectionReminderDay", 1, 28)}{numberField("Second reminder day of month", "inspectionSecondReminderDay", 1, 28)}<p className="editor-safety-note">Choose the exact due date for the current monthly inspection. After the inspection cycle is finished, update this date for the next cycle. Admin is included on overdue notifications.</p></section>
     </div>
     <button className="primary-button schedule-save" disabled={saving} onClick={() => void saveAndApply()}>{saving ? "Applying schedules…" : "Save schedules & apply deadlines"}</button>
     <section className="admin-panel">
