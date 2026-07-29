@@ -41,6 +41,8 @@ service cloud.firestore {
       return (isOwner() && request.resource.data.role == "owner")
         || (!isOwner() && email() == "admin@brightlearnersacademy.net" && request.resource.data.role == "admin")
         || (!isAdmin() && isDirector() && request.resource.data.role == "director")
+        || (exists(/databases/$(database)/documents/staffInvitations/$(email()))
+          && request.resource.data.role == get(/databases/$(database)/documents/staffInvitations/$(email())).data.role)
         || (!isAdmin() && !isDirector() && request.resource.data.role == "employee");
     }
 
@@ -66,6 +68,29 @@ service cloud.firestore {
     match /courses/{courseId} {
       allow read: if verified();
       allow write: if isAdmin();
+    }
+
+    match /academyLocations/{locationId} {
+      allow read: if verified();
+      allow write: if isAdmin();
+    }
+
+    match /contentOverrides/{contentId} {
+      allow read: if verified();
+      allow write: if isAdmin();
+    }
+
+    match /staffInvitations/{invitationEmail} {
+      allow read: if isAdmin() || (verified() && invitationEmail == email());
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (verified()
+        && invitationEmail == email()
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.location == resource.data.location
+        && request.resource.data.province == resource.data.province
+        && request.resource.data.status == "accepted"
+        && request.resource.data.acceptedBy == request.auth.uid);
     }
 
     match /progress/{progressId} {

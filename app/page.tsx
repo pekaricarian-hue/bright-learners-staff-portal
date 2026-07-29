@@ -17,15 +17,17 @@ import {
   signOut,
   updatePassword,
 } from "firebase/auth";
-import { arrayUnion, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { arrayUnion, collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import InspectionWorkflow from "./inspection-workflow";
 import ExitConfirmation from "./exit-confirmation";
 import InspectionReports from "./inspection-reports";
 import CertificateStatus from "./certificate";
 import CertificateLibrary from "./certificate-library";
+import AdminManagement from "./admin-management";
+import AdminContent from "./admin-content";
 
-type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-inspections" | "admin-certificates";
+type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-staff" | "admin-content" | "admin-inspections" | "admin-certificates";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
 type Province = "AB" | "SK";
 type StaffRole = "employee" | "director" | "admin" | "owner";
@@ -38,7 +40,7 @@ type StaffProfile = {
   role: StaffRole;
   location: string;
   province: Province;
-  status: "active";
+  status: "active" | "inactive";
   renewalIntervalMonths: 12;
   toursCompleted?: Partial<Record<"learning" | "inspection" | "admin", boolean>>;
 };
@@ -137,14 +139,17 @@ export default function Home() {
 
   async function createProfile(firstName: string, lastName: string, selectedLocation: string) {
     if (!user || !signedInEmail) return;
-    const finalLocation = directorLocations[signedInEmail] || selectedLocation;
+    const invitationSnapshot = await getDoc(doc(db, "staffInvitations", signedInEmail)).catch(() => null);
+    const invitation = invitationSnapshot?.exists() ? invitationSnapshot.data() : null;
+    const finalLocation = invitation?.location || directorLocations[signedInEmail] || selectedLocation;
+    const assignedRole = invitation?.role || roleForEmail(signedInEmail, user.emailVerified);
     const newProfile: StaffProfile = {
       uid: user.uid,
       email: signedInEmail,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
-      role: roleForEmail(signedInEmail, user.emailVerified),
+      role: assignedRole,
       location: finalLocation,
       province: finalLocation === "Willowgrove" ? "SK" : "AB",
       status: "active",
@@ -166,6 +171,7 @@ export default function Home() {
       assignedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    if (invitation) await setDoc(doc(db, "staffInvitations", signedInEmail), { status: "accepted", acceptedBy: user.uid, acceptedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
     setProfile(newProfile);
     setLocation(finalLocation);
   }
@@ -310,6 +316,8 @@ export default function Home() {
     );
   }
 
+  if (profile?.status === "inactive") return <main className="account-disabled"><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><section><p className="eyebrow">Account unavailable</p><h1>Your staff access is inactive.</h1><p>Contact a Bright Learners administrator if you believe this assignment should be active.</p><button className="outline-button" onClick={() => signOut(auth)}>Sign out</button></section></main>;
+
   if (!user.emailVerified) {
     return <EmailVerificationGate user={user} signOutUser={() => signOut(auth)} />;
   }
@@ -338,7 +346,7 @@ export default function Home() {
           <nav aria-label="Portal">
             {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
             {activePortal === "inspection" && <><button data-tour="inspection-dashboard-tab" className={view === "director" ? "active" : ""} onClick={() => setView("director")}>Inspection dashboard</button><button data-tour="inspection-reports-tab" className={view === "inspection-reports" ? "active" : ""} onClick={() => setView("inspection-reports")}>Reports & drafts</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
-            {activePortal === "admin" && <><button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Organization overview</button><button data-tour="admin-inspection-records" className={view === "admin-inspections" ? "active" : ""} onClick={() => setView("admin-inspections")}>Inspection records</button><button data-tour="admin-certificates" className={view === "admin-certificates" ? "active" : ""} onClick={() => setView("admin-certificates")}>Certificates</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
+            {activePortal === "admin" && <><button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Overview</button><button className={view === "admin-staff" ? "active" : ""} onClick={() => setView("admin-staff")}>Staff & locations</button><button className={view === "admin-content" ? "active" : ""} onClick={() => setView("admin-content")}>Content</button><button data-tour="admin-inspection-records" className={view === "admin-inspections" ? "active" : ""} onClick={() => setView("admin-inspections")}>Inspections</button><button data-tour="admin-certificates" className={view === "admin-certificates" ? "active" : ""} onClick={() => setView("admin-certificates")}>Certificates</button><button className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
           </nav>
           <details className="account-menu">
             <summary className="user-chip" data-tour="profile-menu" aria-label="Open account menu"><span>{profile.firstName[0]?.toUpperCase() || "S"}</span><div><b>{profile.displayName}</b><small>{profile.location} · {profile.role}</small></div></summary>
@@ -358,7 +366,9 @@ export default function Home() {
         {view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} showAll={activePortal === "admin"} />}
         {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
         {activePortal === "inspection" && view === "inspection-reports" && <InspectionReports userId={user.uid} directorName={profile.displayName} />}
-        {activePortal === "admin" && view === "admin" && <AdminView />}
+        {activePortal === "admin" && view === "admin" && <AdminView setView={setView} />}
+        {activePortal === "admin" && view === "admin-staff" && <AdminManagement openContent={() => setView("admin-content")} />}
+        {activePortal === "admin" && view === "admin-content" && <AdminContent albertaDefaults={albertaModules} saskatchewanDefaults={saskatchewanModules} />}
         {activePortal === "admin" && view === "admin-inspections" && <InspectionReports userId={user.uid} directorName={profile.displayName} adminMode />}
         {activePortal === "admin" && view === "admin-certificates" && <CertificateLibrary />}
       </section>
@@ -615,18 +625,24 @@ function EmployeeView({ userId, email, displayName, location, province }: { user
   const [lessonOpen, setLessonOpen] = useState(false);
   const [lessonExitOpen, setLessonExitOpen] = useState(false);
   const [favorites, setFavorites] = useState<number[]>([]);
-  const modules = province === "AB" ? albertaModules : saskatchewanModules;
+  const defaultModules = province === "AB" ? albertaModules : saskatchewanModules;
+  const [customModules, setCustomModules] = useState<typeof defaultModules | null>(null);
+  const modules = customModules?.length ? customModules : defaultModules;
   const completion = Math.round((completedModules.length / modules.length) * 100);
   const progressId = `${userId}_${province.toLowerCase()}-orientation`;
 
   useEffect(() => {
-    getDoc(doc(db, "progress", progressId)).then((snapshot) => {
-      if (snapshot.exists()) {
-        setCompletedModules(snapshot.data().completedModules || []);
-        setModuleSlides(snapshot.data().moduleSlides || {});
+    Promise.all([
+      getDoc(doc(db, "progress", progressId)),
+      getDoc(doc(db, "courses", `${province.toLowerCase()}-orientation`)),
+    ]).then(([progressSnapshot, courseSnapshot]) => {
+      if (progressSnapshot.exists()) {
+        setCompletedModules(progressSnapshot.data().completedModules || []);
+        setModuleSlides(progressSnapshot.data().moduleSlides || {});
       }
+      if (courseSnapshot.exists() && Array.isArray(courseSnapshot.data().modules)) setCustomModules(courseSnapshot.data().modules);
     }).catch(() => undefined);
-  }, [progressId]);
+  }, [progressId, province]);
 
   async function saveSlide(moduleIndex: number, slideIndex: number) {
     const key = String(moduleIndex);
@@ -1371,12 +1387,48 @@ function DirectorView({ userId, directorName, location, setLocation }: { userId:
   </div>;
 }
 
-function AdminView() {
+function AdminView({ setView }: { setView: (view: View) => void }) {
+  const [stats, setStats] = useState({ staff: 0, complete: 0, locations: 5, overdue: 0, followUps: 0, renewals: 0 });
+  useEffect(() => {
+    Promise.all([
+      getDocs(collection(db, "users")),
+      getDocs(collection(db, "progress")),
+      getDocs(collection(db, "academyLocations")),
+      getDocs(collection(db, "inspections")),
+      getDocs(collection(db, "certificates")),
+    ]).then(([users, progress, academies, inspections, certificates]) => {
+      const activeStaff = users.docs.filter((item) => item.data().status !== "inactive");
+      const completed = progress.docs.filter((item) => (item.data().completedModules || []).length >= 8).length;
+      const now = Date.now();
+      const overdue = progress.docs.filter((item) => {
+        const due = item.data().dueAt?.toDate?.();
+        return due && due.getTime() < now && (item.data().completedModules || []).length < 8;
+      }).length;
+      const followUps = inspections.docs.filter((item) => item.data().status === "submitted" && Object.values(item.data().responses || {}).some((response) => (response as { result?: string }).result === "fail")).length;
+      const renewals = certificates.docs.filter((item) => {
+        const expiry = item.data().expiresAt?.toDate?.();
+        return expiry && expiry.getTime() - now <= 60 * 86400000;
+      }).length;
+      setStats({
+        staff: activeStaff.length,
+        complete: activeStaff.length ? Math.round((completed / activeStaff.length) * 100) : 0,
+        locations: academies.empty ? 5 : academies.docs.filter((item) => item.data().active !== false).length,
+        overdue,
+        followUps,
+        renewals,
+      });
+    }).catch(() => undefined);
+  }, []);
+  const queue = [
+    { label: `${stats.overdue} overdue course assignments`, view: "admin-staff" as View },
+    { label: `${stats.followUps} inspections with follow-ups`, view: "admin-inspections" as View },
+    { label: `${stats.renewals} certificates due or expiring soon`, view: "admin-certificates" as View },
+  ];
   return <div className="content">
-    <div data-tour="admin-overview" className="stat-grid admin-stats"><article><span>☺</span><div><b>47</b><small>Active staff</small></div></article><article><span>✓</span><div><b>82%</b><small>Training complete</small></div></article><article><span>⌂</span><div><b>5</b><small>Academy locations</small></div></article></div>
+    <div data-tour="admin-overview" className="stat-grid admin-stats"><article><span>☺</span><div><b>{stats.staff}</b><small>Active staff</small></div></article><article><span>✓</span><div><b>{stats.complete}%</b><small>Training complete</small></div></article><article><span>⌂</span><div><b>{stats.locations}</b><small>Academy locations</small></div></article></div>
     <div className="admin-grid">
-      <section className="table-card"><p className="eyebrow">Needs attention</p><h2>Compliance queue</h2>{["3 overdue course assignments","2 inspection follow-ups","5 certificates renew soon"].map((x,i)=><div className="queue" key={x}><span>{i+1}</span><b>{x}</b><button>Review</button></div>)}</section>
-      <section data-tour="admin-actions" className="quick-card"><p className="handwritten">Quick actions</p><button>＋ Add staff account</button><button>＋ Create course module</button><button>＋ Edit inspection checklist</button><button>↗ Export compliance report</button></section>
+      <section className="table-card"><p className="eyebrow">Needs attention</p><h2>Compliance queue</h2>{queue.map((item, index) => <div className="queue" key={item.label}><span>{index + 1}</span><b>{item.label}</b><button onClick={() => setView(item.view)}>Review</button></div>)}</section>
+      <section data-tour="admin-actions" className="quick-card"><p className="handwritten">Quick actions</p><button onClick={() => setView("admin-staff")}>＋ Add or manage staff</button><button onClick={() => setView("admin-content")}>＋ Edit course modules</button><button onClick={() => setView("admin-content")}>＋ Edit inspection checklist</button><button onClick={() => setView("admin-certificates")}>↗ View compliance records</button></section>
     </div>
   </div>;
 }

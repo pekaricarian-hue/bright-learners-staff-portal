@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
-import { monthlyInspectionSections } from "./inspection-data";
+import { InspectionSection, monthlyInspectionSections } from "./inspection-data";
 import ExitConfirmation from "./exit-confirmation";
 import SignaturePad from "./signature-pad";
 
@@ -45,9 +45,10 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     sectionIndex: number;
     targetId: string;
   }>(null);
+  const [sections, setSections] = useState<InspectionSection[]>(monthlyInspectionSections);
   const [message, setMessage] = useState("Loading saved inspection...");
   const pointerId = `${userId}_${safe(location)}`;
-  const allItems = useMemo(() => monthlyInspectionSections.flatMap((section) => section.items), []);
+  const allItems = useMemo(() => sections.flatMap((section) => section.items), [sections]);
   const answered = allItems.filter((item) => responses[item.id]?.result).length;
   const failed = allItems.filter((item) => responses[item.id]?.result === "fail").length;
   const completionPercent = Math.round((answered / allItems.length) * 100);
@@ -56,6 +57,8 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     let active = true;
     async function load() {
       try {
+        const template = await getDoc(doc(db, "contentOverrides", "inspection-template"));
+        if (active && template.exists() && Array.isArray(template.data().sections)) setSections(template.data().sections);
         const pointer = await getDoc(doc(db, "inspectionDrafts", pointerId));
         const existingId = pointer.exists() ? pointer.data().inspectionId : "";
         if (existingId) {
@@ -186,7 +189,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     );
     if (unanswered.length) {
       const first = unanswered[0];
-      const targetSection = monthlyInspectionSections.findIndex((candidate) => candidate.items.some((item) => item.id === first.id));
+      const targetSection = sections.findIndex((candidate) => candidate.items.some((item) => item.id === first.id));
       setValidationIssue({
         title: "The checklist is not finished",
         message: `${unanswered.length} item${unanswered.length === 1 ? " has" : "s have"} not been answered. Every item must be marked Pass, Fail or N/A before this inspection can be submitted.`,
@@ -197,7 +200,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     }
     if (undocumentedExceptions.length) {
       const first = undocumentedExceptions[0];
-      const targetSection = monthlyInspectionSections.findIndex((candidate) => candidate.items.some((item) => item.id === first.id));
+      const targetSection = sections.findIndex((candidate) => candidate.items.some((item) => item.id === first.id));
       setValidationIssue({
         title: "An explanation is missing",
         message: `${undocumentedExceptions.length} Fail or N/A response${undocumentedExceptions.length === 1 ? " needs" : "s need"} an explanation before this inspection can be submitted.`,
@@ -210,7 +213,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       setValidationIssue({
         title: "Your final signature is required",
         message: "Type your full legal name and sign in the touchscreen box before submitting this inspection.",
-        sectionIndex: monthlyInspectionSections.length - 1,
+        sectionIndex: sections.length - 1,
         targetId: "inspection-signoff",
       });
       return;
@@ -251,19 +254,19 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     }));
   }
 
-  const section = monthlyInspectionSections[sectionIndex];
+  const section = sections[sectionIndex] || sections[0];
   return <div className="inspection-backdrop">
     <section className="inspection-workflow" role="dialog" aria-modal="true" aria-labelledby="inspection-title">
       <header className="inspection-workflow-header">
-        <div><p className="eyebrow">Monthly self-assessment · {location}</p><h1 id="inspection-title">{section.title}</h1><span>Section {sectionIndex + 1} of {monthlyInspectionSections.length}</span></div>
+        <div><p className="eyebrow">Monthly self-assessment · {location}</p><h1 id="inspection-title">{section.title}</h1><span>Section {sectionIndex + 1} of {sections.length}</span></div>
         <button className="inspection-close" onClick={() => setExitConfirmationOpen(true)} aria-label="Save progress and exit inspection">×</button>
       </header>
       <div className="inspection-progress"><i style={{ width: `${completionPercent}%` }} /></div>
       <div className="inspection-progress-copy"><b>{answered} of {allItems.length} answered</b><span>{failed} follow-up{failed === 1 ? "" : "s"} · {saving ? "Saving..." : message}</span></div>
       <nav className="inspection-section-tabs" aria-label="Inspection sections">
-        {monthlyInspectionSections.map((item, index) => <button key={item.id} className={sectionIndex === index ? "active" : ""} onClick={() => void moveSection(index)}><span>{index + 1}</span>{item.title}</button>)}
+        {sections.map((item, index) => <button key={item.id} className={sectionIndex === index ? "active" : ""} onClick={() => void moveSection(index)}><span>{index + 1}</span>{item.title}</button>)}
       </nav>
-      <label className="inspection-section-select">Checklist section<select value={sectionIndex} onChange={(event) => void moveSection(Number(event.target.value))}>{monthlyInspectionSections.map((item, index) => <option value={index} key={item.id}>{index + 1}. {item.title}</option>)}</select></label>
+      <label className="inspection-section-select">Checklist section<select value={sectionIndex} onChange={(event) => void moveSection(Number(event.target.value))}>{sections.map((item, index) => <option value={index} key={item.id}>{index + 1}. {item.title}</option>)}</select></label>
       <div className="inspection-items">
         {section.items.map((item, index) => {
           const response = responses[item.id] || {};
@@ -289,14 +292,14 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         })}
       </div>
       <label className="inspection-overall-notes">Section or inspection notes<textarea value={overallNotes} onChange={(event) => setOverallNotes(event.target.value)} onBlur={() => void persist(responses, sectionIndex, overallNotes)} placeholder="Optional general notes for this inspection..." /></label>
-      {sectionIndex === monthlyInspectionSections.length - 1 && <section id="inspection-signoff" className="inspection-signoff">
+      {sectionIndex === sections.length - 1 && <section id="inspection-signoff" className="inspection-signoff">
         <div><p className="eyebrow">Required final sign-off</p><h2>Director declaration</h2><p>I confirm that I completed this inspection and that the recorded answers, exceptions and supporting evidence are accurate to the best of my knowledge.</p></div>
         <label>Type your full legal name <em>Required</em><input value={signatureName} onChange={(event) => setSignatureName(event.target.value)} onBlur={() => void persist(responses, sectionIndex, overallNotes, signatureName, signatureData)} placeholder="First and last name" /></label>
         <label>Handwritten signature <em>Required</em><SignaturePad value={signatureData} onChange={(value) => { setSignatureData(value); void persist(responses, sectionIndex, overallNotes, signatureName, value); }} /></label>
       </section>}
       <footer className="inspection-actions">
         <button className="outline-button" disabled={sectionIndex === 0} onClick={() => void moveSection(sectionIndex - 1)}>← Previous section</button>
-        {sectionIndex < monthlyInspectionSections.length - 1 ? <button className="primary-button" onClick={() => void moveSection(sectionIndex + 1)}>Save & next section →</button> : <button className="primary-button" disabled={saving} onClick={() => void submitInspection()}>Complete inspection →</button>}
+        {sectionIndex < sections.length - 1 ? <button className="primary-button" onClick={() => void moveSection(sectionIndex + 1)}>Save & next section →</button> : <button className="primary-button" disabled={saving} onClick={() => void submitInspection()}>Complete inspection →</button>}
       </footer>
     </section>
     {exitConfirmationOpen && <ExitConfirmation

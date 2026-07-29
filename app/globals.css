@@ -284,6 +284,302 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
     left: 16px !important;
   }
 }
+
+.admin-management,
+.admin-content-editor {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-management-message {
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid #b9d8d0;
+  border-radius: 14px;
+  background: #eef8f4;
+  color: var(--ink);
+}
+
+.admin-management-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.admin-management-summary article {
+  display: grid;
+  gap: 4px;
+  padding: 22px;
+  border: 1px solid #d8e0e4;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 4px 5px 0 #e7ece9;
+}
+
+.admin-management-summary b {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 34px;
+}
+
+.admin-panel {
+  padding: 26px;
+  border: 1px solid #d8e0e4;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 4px 5px 0 #e7ece9;
+}
+
+.admin-panel > h2,
+.admin-panel .section-heading h2 {
+  margin: 4px 0 10px;
+}
+
+.admin-directory-filters,
+.admin-management-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.admin-directory-filters {
+  margin: 18px 0;
+}
+
+.admin-directory-filters input,
+.admin-directory-filters select,
+.admin-panel input,
+.admin-panel select,
+.admin-panel textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #bdcbd0;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.admin-panel label {
+  display: grid;
+  gap: 7px;
+  margin: 13px 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.staff-directory {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-directory article {
+  display: grid;
+  grid-template-columns: 46px minmax(210px, 1fr) 150px 170px 120px;
+  align-items: end;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e0e6e8;
+  border-radius: 15px;
+  background: #fbfcfc;
+}
+
+.staff-directory label {
+  margin: 0;
+  font-size: 12px;
+}
+
+.staff-avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  align-self: center;
+  border-radius: 14px;
+  background: var(--yellow);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.staff-identity {
+  display: grid;
+  gap: 3px;
+  align-self: center;
+}
+
+.staff-identity small {
+  color: var(--muted);
+}
+
+.admin-editor-tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-editor-tabs button {
+  padding: 13px 18px;
+  border: 1px solid #c7d2d5;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.admin-editor-tabs button.active {
+  border-color: var(--yellow);
+  background: #fff5d6;
+}
+
+.editor-safety-note {
+  padding: 13px 16px;
+  border-left: 4px solid var(--yellow);
+  border-radius: 8px;
+  background: #fff9e8;
+  color: var(--muted);
+}
+
+.module-content-editor,
+.checklist-content-editor {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.module-content-editor article {
+  display: grid;
+  grid-template-columns: 44px 1fr 1.2fr 120px;
+  align-items: start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dde4e6;
+  border-radius: 16px;
+}
+
+.module-content-editor article > span {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  background: #e9f3f0;
+  font-weight: 900;
+}
+
+.module-content-editor label {
+  margin: 0;
+}
+
+.module-content-editor textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.checklist-content-editor details {
+  overflow: hidden;
+  border: 1px solid #dce4e6;
+  border-radius: 16px;
+}
+
+.checklist-content-editor summary {
+  display: flex;
+  justify-content: space-between;
+  padding: 17px 19px;
+  background: #f7faf9;
+  cursor: pointer;
+}
+
+.checklist-content-editor details > div {
+  padding: 16px;
+}
+
+.checklist-content-editor article {
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin: 9px 0;
+}
+
+.checklist-content-editor article span {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.checklist-content-editor article textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.checklist-content-editor article button {
+  border: 0;
+  background: transparent;
+  color: #a23b3b;
+  font-weight: 800;
+}
+
+.admin-publish-button {
+  margin-top: 20px;
+}
+
+.account-disabled {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 20px;
+  padding: 28px;
+  background: #f7f9fa;
+  text-align: center;
+}
+
+.account-disabled section {
+  max-width: 560px;
+  padding: 34px;
+  border: 1px solid #d8e0e4;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 6px 7px 0 #e6ece9;
+}
+
+@media (max-width: 1100px) {
+  .staff-directory article {
+    grid-template-columns: 46px 1fr 1fr;
+  }
+
+  .staff-directory article > label:last-of-type,
+  .staff-directory article > button {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-management-summary,
+  .admin-management-grid,
+  .admin-directory-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-directory article,
+  .module-content-editor article {
+    grid-template-columns: 44px 1fr;
+    align-items: start;
+  }
+
+  .staff-directory article > label,
+  .staff-directory article > button,
+  .module-content-editor article > label {
+    grid-column: 2;
+  }
+
+  .checklist-content-editor article {
+    grid-template-columns: 44px 1fr;
+  }
+
+  .checklist-content-editor article button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
 .module-quiz {
   max-width: 880px;
   margin: 0 auto;
