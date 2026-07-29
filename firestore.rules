@@ -6,24 +6,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function verified() {
-      return signedIn() && request.auth.token.email_verified == true;
-    }
-
     function email() {
       return signedIn() ? request.auth.token.email.lower() : "";
     }
 
     function isOwner() {
-      return verified() && email() == "pekaric.arian@gmail.com";
+      return signedIn() && email() == "pekaric.arian@gmail.com";
     }
 
     function isAdmin() {
-      return isOwner() || (verified() && email() == "admin@brightlearnersacademy.net");
+      return isOwner() || (signedIn() && email() == "admin@brightlearnersacademy.net");
     }
 
     function isDirector() {
-      return verified() && email() in [
+      return signedIn() && email() in [
         "sylvandaycare@gmail.com",
         "sundance@brightlearnersacademy.net",
         "midnapore@brightlearnersacademy.net",
@@ -47,7 +43,7 @@ service cloud.firestore {
     }
 
     function owns(userId) {
-      return verified() && request.auth.uid == userId;
+      return signedIn() && request.auth.uid == userId;
     }
 
     match /users/{userId} {
@@ -66,24 +62,24 @@ service cloud.firestore {
     }
 
     match /courses/{courseId} {
-      allow read: if verified();
+      allow read: if signedIn();
       allow write: if isAdmin();
     }
 
     match /academyLocations/{locationId} {
-      allow read: if verified();
+      allow read: if signedIn();
       allow write: if isAdmin();
     }
 
     match /contentOverrides/{contentId} {
-      allow read: if verified();
+      allow read: if signedIn();
       allow write: if isAdmin();
     }
 
     match /staffInvitations/{invitationEmail} {
-      allow read: if isAdmin() || (verified() && invitationEmail == email());
+      allow read: if isAdmin() || (signedIn() && invitationEmail == email());
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (verified()
+      allow update: if isAdmin() || (signedIn()
         && invitationEmail == email()
         && request.resource.data.email == resource.data.email
         && request.resource.data.role == resource.data.role
@@ -94,51 +90,51 @@ service cloud.firestore {
     }
 
     match /progress/{progressId} {
-      allow read: if verified() &&
+      allow read: if signedIn() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if verified() &&
+      allow create: if signedIn() &&
         request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (verified() &&
+      allow update: if isAdmin() || (signedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
     }
 
     match /complianceSchedules/{scheduleId} {
-      allow read: if verified();
+      allow read: if signedIn();
       allow write: if isAdmin();
     }
 
     match /inspections/{inspectionId} {
-      allow read: if verified() &&
+      allow read: if signedIn() &&
         (resource.data.directorId == request.auth.uid || isAdmin());
-      allow create: if verified() &&
+      allow create: if signedIn() &&
         request.resource.data.directorId == request.auth.uid;
-      allow update: if verified() &&
+      allow update: if signedIn() &&
         resource.data.directorId == request.auth.uid &&
         request.resource.data.directorId == request.auth.uid;
       allow delete: if isAdmin();
     }
 
     match /inspectionDrafts/{draftId} {
-      allow read: if verified() &&
+      allow read: if signedIn() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if verified() &&
+      allow create: if signedIn() &&
         request.resource.data.userId == request.auth.uid;
-      allow update: if verified() &&
+      allow update: if signedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid;
       allow delete: if isAdmin();
     }
 
     match /certificates/{certificateId} {
-      allow read: if verified() &&
+      allow read: if signedIn() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if verified() &&
+      allow create: if signedIn() &&
         request.resource.data.userId == request.auth.uid &&
         (isOwner() ||
           get(/databases/$(database)/documents/progress/$(request.auth.uid + "_" + request.resource.data.courseId)).data.completedModules.size() == 8);
-      allow update: if verified() &&
+      allow update: if signedIn() &&
         request.resource.data.userId == resource.data.userId &&
         (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
@@ -146,9 +142,19 @@ service cloud.firestore {
 
     match /auditEvents/{eventId} {
       allow read: if isAdmin();
-      allow create: if verified() &&
+      allow create: if signedIn() &&
         request.resource.data.actorId == request.auth.uid;
       allow update, delete: if false;
+    }
+
+    match /notificationQueue/{notificationId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.type == "staff-signup"
+        && request.resource.data.recipient == "admin@brightlearnersacademy.net"
+        && request.resource.data.status == "pending";
+      allow update, delete: if isAdmin();
     }
 
     match /{document=**} {

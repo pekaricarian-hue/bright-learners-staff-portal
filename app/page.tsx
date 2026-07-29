@@ -10,7 +10,6 @@ import {
   createUserWithEmailAndPassword,
   linkWithCredential,
   onAuthStateChanged,
-  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -87,10 +86,10 @@ const directorEmails = new Set([
   "payroll@brightlearnersacademy.net",
 ]);
 
-function roleForEmail(email: string, emailVerified: boolean): StaffRole {
-  if (emailVerified && ownerEmails.has(email)) return "owner";
-  if (emailVerified && adminEmails.has(email)) return "admin";
-  if (emailVerified && directorEmails.has(email)) return "director";
+function roleForEmail(email: string): StaffRole {
+  if (ownerEmails.has(email)) return "owner";
+  if (adminEmails.has(email)) return "admin";
+  if (directorEmails.has(email)) return "director";
   return "employee";
 }
 
@@ -101,6 +100,10 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [signupFirstName, setSignupFirstName] = useState("");
+  const [signupLastName, setSignupLastName] = useState("");
+  const [signupLocation, setSignupLocation] = useState("");
+  const [signupSaving, setSignupSaving] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [message, setMessage] = useState("");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -143,19 +146,20 @@ export default function Home() {
     setLoading(false);
   }), []);
 
-  async function createProfile(firstName: string, lastName: string, selectedLocation: string) {
-    if (!user || !signedInEmail) return;
-    const invitationSnapshot = await getDoc(doc(db, "staffInvitations", signedInEmail)).catch(() => null);
+  async function createProfileForUser(account: User, firstName: string, lastName: string, selectedLocation: string) {
+    const accountEmail = account.email?.toLowerCase() ?? "";
+    if (!accountEmail) throw new Error("Account email is unavailable.");
+    const invitationSnapshot = await getDoc(doc(db, "staffInvitations", accountEmail)).catch(() => null);
     const invitation = invitationSnapshot?.exists() ? invitationSnapshot.data() : null;
-    const finalLocation = invitation?.location || directorLocations[signedInEmail] || selectedLocation;
-    const assignedRole = invitation?.role || roleForEmail(signedInEmail, user.emailVerified);
+    const finalLocation = invitation?.location || directorLocations[accountEmail] || selectedLocation;
+    const assignedRole = invitation?.role || roleForEmail(accountEmail);
     const scheduleSnapshot = await getDoc(doc(db, "complianceSchedules", "default")).catch(() => null);
     const onboardingDueDays = scheduleSnapshot?.data()?.onboardingDueDays || 14;
     const assignedAt = new Date();
     const dueAt = new Date(assignedAt.getTime() + onboardingDueDays * 86400000);
     const newProfile: StaffProfile = {
-      uid: user.uid,
-      email: signedInEmail,
+      uid: account.uid,
+      email: accountEmail,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
@@ -166,14 +170,17 @@ export default function Home() {
       renewalIntervalMonths: 12,
       toursCompleted: {},
     };
-    await setDoc(doc(db, "users", user.uid), {
+    await setDoc(doc(db, "users", account.uid), {
       ...newProfile,
+      notificationStatus: "pending",
+      notificationRecipient: "admin@brightlearnersacademy.net",
+      notificationType: "staff-signup",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       lastSignInAt: serverTimestamp(),
     });
-    await setDoc(doc(db, "progress", `${user.uid}_${newProfile.province.toLowerCase()}-orientation`), {
-      userId: user.uid,
+    await setDoc(doc(db, "progress", `${account.uid}_${newProfile.province.toLowerCase()}-orientation`), {
+      userId: account.uid,
       courseId: `${newProfile.province.toLowerCase()}-orientation`,
       completedModules: [],
       currentModule: 0,
@@ -183,9 +190,26 @@ export default function Home() {
       dueSoonDays: scheduleSnapshot?.data()?.courseDueSoonDays || 7,
       updatedAt: serverTimestamp(),
     });
-    if (invitation) await setDoc(doc(db, "staffInvitations", signedInEmail), { status: "accepted", acceptedBy: user.uid, acceptedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(doc(db, "notificationQueue", `${account.uid}_staff-signup`), {
+      type: "staff-signup",
+      actorId: account.uid,
+      recipient: "admin@brightlearnersacademy.net",
+      staffName: newProfile.displayName,
+      staffEmail: newProfile.email,
+      location: newProfile.location,
+      province: newProfile.province,
+      role: newProfile.role,
+      status: "pending",
+      createdAt: serverTimestamp(),
+    });
+    if (invitation) await setDoc(doc(db, "staffInvitations", accountEmail), { status: "accepted", acceptedBy: account.uid, acceptedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
     setProfile(newProfile);
     setLocation(finalLocation);
+  }
+
+  async function createProfile(firstName: string, lastName: string, selectedLocation: string) {
+    if (!user) return;
+    await createProfileForUser(user, firstName, lastName, selectedLocation);
   }
 
   async function updateProfile(firstName: string, lastName: string, selectedLocation?: string) {
@@ -250,15 +274,14 @@ export default function Home() {
   async function emailSignup(event: React.FormEvent) {
     event.preventDefault();
     setMessage("");
+    if (!signupFirstName.trim() || !signupLastName.trim()) return setMessage("Enter your legal first and last name.");
+    if (!signupLocation) return setMessage("Choose the Bright Learners location where you work.");
     if (password.length < 8) return setMessage("Use a password with at least 8 characters.");
     if (password !== confirmPassword) return setMessage("The two passwords do not match.");
+    setSignupSaving(true);
     try {
       const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      await sendEmailVerification(credential.user, {
-        url: window.location.origin,
-        handleCodeInApp: false,
-      }).catch(() => undefined);
-      setMessage("Account created. Verify your email before completing your staff profile.");
+      await createProfileForUser(credential.user, signupFirstName, signupLastName, signupLocation);
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
       if (code.includes("email-already-in-use")) {
@@ -266,8 +289,10 @@ export default function Home() {
       } else if (code.includes("invalid-email")) {
         setMessage("Enter a valid email address.");
       } else {
-        setMessage("We couldn’t create the account. Check the email and password, then try again.");
+        setMessage("We couldn’t finish creating the profile. If the account was created, sign in and complete the profile screen, or contact the administrator.");
       }
+    } finally {
+      setSignupSaving(false);
     }
   }
 
@@ -314,9 +339,10 @@ export default function Home() {
             <p className="handwritten">{authMode === "signin" ? "Welcome back!" : "Join the team!"}</p>
             <h2>{authMode === "signin" ? "Sign in to continue" : "Create your staff account"}</h2>
             <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@brightlearnersacademy.net" required /></label>
+            {authMode === "signup" && <><p className="signup-profile-note">Your name will appear on your final internal orientation certificate. Your academy permanently assigns the correct provincial course unless an administrator changes it.</p><div className="profile-name-fields signup-name-fields"><label>Legal first name<input required autoComplete="given-name" value={signupFirstName} onChange={(event) => setSignupFirstName(event.target.value)} placeholder="Enter your legal first name" /></label><label>Legal last name<input required autoComplete="family-name" value={signupLastName} onChange={(event) => setSignupLastName(event.target.value)} placeholder="Enter your legal last name" /></label></div><label>Bright Learners location<select required value={signupLocation} onChange={(event) => setSignupLocation(event.target.value)}><option value="">Choose your location</option>{locations.map((academy) => <option key={academy} value={academy}>{academy} — {academy === "Willowgrove" ? "Saskatchewan" : "Alberta"}</option>)}</select></label></>}
             <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={authMode === "signup" ? "At least 8 characters" : "••••••••"} minLength={authMode === "signup" ? 8 : undefined} required /></label>
             {authMode === "signup" && <label>Confirm password<input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Enter it again" minLength={8} required /></label>}
-            <button className="primary-button" type="submit">{authMode === "signin" ? "Sign in" : "Create account"}</button>
+            <button className="primary-button" type="submit" disabled={signupSaving}>{authMode === "signin" ? "Sign in" : signupSaving ? "Creating your profile…" : "Create account"}</button>
             <button className="google-button" type="button" onClick={googleLogin}><b>G</b>{authMode === "signin" ? "Continue with Google" : "Create account with Google"}</button>
             {authMode === "signin" && <button className="text-button" type="button" onClick={resetPassword}>Reset password</button>}
             <button className="auth-mode-toggle" type="button" onClick={() => { setAuthMode((current) => current === "signin" ? "signup" : "signin"); setPassword(""); setConfirmPassword(""); setMessage(""); }}>{authMode === "signin" ? "Don’t have an account? Create one" : "Already have an account? Sign in"}</button>
@@ -329,10 +355,6 @@ export default function Home() {
   }
 
   if (profile?.status === "inactive") return <main className="account-disabled"><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><section><p className="eyebrow">Account unavailable</p><h1>Your staff access is inactive.</h1><p>Contact a Bright Learners administrator if you believe this assignment should be active.</p><button className="outline-button" onClick={() => signOut(auth)}>Sign out</button></section></main>;
-
-  if (!user.emailVerified) {
-    return <EmailVerificationGate user={user} signOutUser={() => signOut(auth)} />;
-  }
 
   if (!profile) {
     return <ProfileSetup user={user} fixedLocation={directorLocations[signedInEmail]} save={createProfile} signOutUser={() => signOut(auth)} />;
@@ -391,56 +413,6 @@ export default function Home() {
       {tourOpen && <GuidedTour portal={tourPortal} canAdmin={canAdmin} finish={() => finishTour(tourPortal)} close={() => setTourOpen(false)} />}
     </main>
   );
-}
-
-function EmailVerificationGate({ user, signOutUser }: { user: User; signOutUser: () => void }) {
-  const [status, setStatus] = useState("Check your Inbox and Spam/Junk folders for the verification email we sent when this account was created.");
-  const [checking, setChecking] = useState(false);
-  useEffect(() => {
-    let active = true;
-    const checkWhenReturning = async () => {
-      if (document.visibilityState === "hidden") return;
-      await user.reload().catch(() => undefined);
-      if (active && auth.currentUser?.emailVerified) window.location.reload();
-    };
-    window.addEventListener("focus", checkWhenReturning);
-    document.addEventListener("visibilitychange", checkWhenReturning);
-    return () => {
-      active = false;
-      window.removeEventListener("focus", checkWhenReturning);
-      document.removeEventListener("visibilitychange", checkWhenReturning);
-    };
-  }, [user]);
-  async function resend() {
-    setChecking(true);
-    try {
-      await sendEmailVerification(user, {
-        url: window.location.origin,
-        handleCodeInApp: false,
-      });
-      setStatus(`Email sent — check your Inbox and Spam/Junk folders. The verification link was sent to ${user.email} and may take a few minutes to arrive.`);
-    } catch {
-      setStatus("The verification email could not be sent yet. Wait a moment and try again.");
-    } finally {
-      setChecking(false);
-    }
-  }
-  async function continueAfterVerification() {
-    setChecking(true);
-    try {
-      await user.reload();
-      if (auth.currentUser?.emailVerified) {
-        window.location.reload();
-        return;
-      }
-      setStatus("This email is not verified yet. Open the link in the verification email, then try again.");
-    } catch {
-      setStatus("We could not check the email status. Please try again.");
-    } finally {
-      setChecking(false);
-    }
-  }
-  return <main className="verification-gate"><header><Image src="/bright-learners-logo.png" alt="Bright Learners Academy" width={230} height={112} priority /><button onClick={signOutUser}>Sign out</button></header><section><span className="verification-icon">✉</span><p className="eyebrow">One quick security step</p><h1>Verify your email address.</h1><p>Before you choose a location or begin Bright Learners training, confirm that <b>{user.email}</b> belongs to you.</p><div className="verification-status" role="status">{status}</div><button className="brand-button" disabled={checking} onClick={continueAfterVerification}>{checking ? "Checking…" : "I’ve verified my email — continue"}</button><button className="outline-button" disabled={checking} onClick={resend}>Resend verification email</button><small>The verification link is sent securely by Firebase Authentication.</small></section></main>;
 }
 
 function ProfileSetup({ user, fixedLocation, save, signOutUser }: { user: User; fixedLocation?: string; save: (firstName: string, lastName: string, location: string) => Promise<void>; signOutUser: () => void }) {
