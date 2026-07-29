@@ -27,7 +27,6 @@ const defaults: Schedule = {
 const academyNames = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
 const dateLabel = (date: Date) => new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(date);
 const monthStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
-const nextMonthStart = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 1);
 const previousMonthStart = (date: Date) => new Date(date.getFullYear(), date.getMonth() - 1, 1);
 
 export default function AdminScheduling() {
@@ -58,7 +57,7 @@ export default function AdminScheduling() {
       items.push({ id: item.id, type: "Course", person: user.displayName || user.email, location: user.location, due, status: due < now ? "Overdue" : "Due soon" });
     });
     const currentStart = monthStart(now);
-    const inspectionDue = nextMonthStart(now);
+    const inspectionDue = new Date(now.getFullYear(), now.getMonth() + 1, activeSchedule.inspectionDueDay);
     const previousStart = previousMonthStart(now);
     academyNames.forEach((location) => {
       const submitted = inspectionsSnapshot.docs.some((item) => {
@@ -75,8 +74,9 @@ export default function AdminScheduling() {
         const completed = data.completedAt?.toDate?.();
         return data.location === location && data.status === "submitted" && completed && completed >= previousStart && completed < currentStart;
       });
+      const previousInspectionDue = new Date(now.getFullYear(), now.getMonth(), activeSchedule.inspectionDueDay);
       if (shouldTrackPreviousMonth && !previousSubmitted) {
-        items.push({ id: `inspection-overdue-${location}`, type: "Inspection", person: "Location director", location, due: currentStart, status: "Overdue" });
+        items.push({ id: `inspection-overdue-${location}`, type: "Inspection", person: "Location director", location, due: previousInspectionDue, status: now >= previousInspectionDue ? "Overdue" : "Due soon" });
       }
     });
     certificatesSnapshot.docs.forEach((item) => {
@@ -138,7 +138,7 @@ export default function AdminScheduling() {
     <div className="admin-management-summary"><article><b>{summary.overdue}</b><span>Overdue</span></article><article><b>{summary.dueSoon}</b><span>Due soon</span></article><article><b>{summary.inspections}</b><span>Monthly inspections outstanding</span></article></div>
     <div className="schedule-editor-grid">
       <section className="admin-panel"><p className="eyebrow">Employee learning</p><h2>Course deadlines</h2>{numberField("New employee course due after (days)", "onboardingDueDays", 1, 90)}{numberField("Show due soon this many days before", "courseDueSoonDays", 1, 30)}{numberField("Certificate renewal interval (months)", "renewalMonths", 1, 36)}{numberField("Renewal reminder begins (days before)", "renewalReminderDays", 1, 120)}</section>
-      <section className="admin-panel"><p className="eyebrow">Facility compliance</p><h2>Monthly inspection timing</h2>{numberField("First reminder day of month", "inspectionReminderDay", 1, 28)}{numberField("Second reminder day of month", "inspectionSecondReminderDay", 1, 28)}<label>Overdue rule<input value="First day of the following month" disabled /></label><p className="editor-safety-note">Admin is included on overdue notifications. Directors receive reminders for the location selected in their assignment.</p></section>
+      <section className="admin-panel"><p className="eyebrow">Facility compliance</p><h2>Monthly inspection timing</h2>{numberField("First reminder day of month", "inspectionReminderDay", 1, 28)}{numberField("Second reminder day of month", "inspectionSecondReminderDay", 1, 28)}{numberField("Mark overdue on this day of the following month", "inspectionDueDay", 1, 28)}<p className="editor-safety-note">Example: choose 1 to mark the previous month’s inspection overdue on the 1st, or choose 5 to allow directors until the 5th. Admin is included on overdue notifications.</p></section>
     </div>
     <button className="primary-button schedule-save" disabled={saving} onClick={() => void saveAndApply()}>{saving ? "Applying schedules…" : "Save schedules & apply deadlines"}</button>
     <section className="admin-panel">

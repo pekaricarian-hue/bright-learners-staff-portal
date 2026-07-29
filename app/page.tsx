@@ -1399,8 +1399,10 @@ function DirectorView({ userId, directorName, location, setLocation }: { userId:
       }
       const reminderDay = scheduleSnapshot.data()?.inspectionReminderDay || 20;
       const secondReminderDay = scheduleSnapshot.data()?.inspectionSecondReminderDay || 25;
+      const overdueDay = scheduleSnapshot.data()?.inspectionDueDay || 1;
+      const inspectionDueDate = new Date(now.getFullYear(), now.getMonth() + 1, overdueDay);
       setMonthlyStatus(now.getDate() >= reminderDay ? "Due soon" : "Due this month");
-      setMonthlyDetail(now.getDate() >= secondReminderDay ? "Second reminder: submit before the first day of next month." : `Submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(new Date(now.getFullYear(), now.getMonth() + 1, 1))}.`);
+      setMonthlyDetail(now.getDate() >= secondReminderDay ? `Second reminder: submit before ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(inspectionDueDate)}.` : `Submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(inspectionDueDate)}.`);
     }).catch(() => undefined);
   }, [location, completionMessage]);
   return <div className="content">
