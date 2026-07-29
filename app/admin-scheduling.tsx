@@ -10,8 +10,6 @@ type Schedule = {
   courseDueSoonDays: number;
   renewalMonths: number;
   renewalReminderDays: number;
-  inspectionReminderDay: number;
-  inspectionSecondReminderDay: number;
   inspectionDueDay: number;
 };
 type QueueItem = { id: string; type: "Course" | "Inspection" | "Renewal"; person: string; location: string; due: Date; status: "Complete" | "Due soon" | "Overdue" };
@@ -21,8 +19,6 @@ const defaults: Schedule = {
   courseDueSoonDays: 7,
   renewalMonths: 12,
   renewalReminderDays: 30,
-  inspectionReminderDay: 1,
-  inspectionSecondReminderDay: 10,
   inspectionDueDay: 15,
 };
 const academyNames = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
@@ -131,7 +127,7 @@ export default function AdminScheduling() {
     <div className="admin-management-summary"><article><b>{summary.overdue}</b><span>Overdue</span></article><article><b>{summary.dueSoon}</b><span>Due soon</span></article><article><b>{summary.inspections}</b><span>Monthly inspections outstanding</span></article></div>
     <div className="schedule-editor-grid">
       <section className="admin-panel"><p className="eyebrow">Employee learning</p><h2>Course deadlines</h2>{numberField("New employee course due after (days)", "onboardingDueDays", 1, 90)}{numberField("Show due soon this many days before", "courseDueSoonDays", 1, 30)}{numberField("Certificate renewal interval (months)", "renewalMonths", 1, 36)}{numberField("Renewal reminder begins (days before)", "renewalReminderDays", 1, 120)}</section>
-      <section className="admin-panel"><p className="eyebrow">Facility compliance</p><h2>Monthly inspection timing</h2>{numberField("Monthly inspection due day", "inspectionDueDay", 1, 28)}<div className="schedule-preview"><b>Automatic monthly reminders</b><span>First reminder: 14 days before</span><span>Second reminder: 5 days before</span><span>Next cycle opens: 14 days before its due date</span></div><p className="editor-safety-note">Example: a due day of 15 opens the cycle around the 1st and sends the second reminder around the 10th. Once submitted, the location stays Complete until the next cycle opens.</p></section>
+      <section className="admin-panel"><p className="eyebrow">Facility compliance</p><h2>Monthly inspection timing</h2>{numberField("Monthly inspection due day", "inspectionDueDay", 1, 28)}<div className="schedule-preview"><b>Automatic monthly reminders</b><span>First reminder: 7 days before</span><span>Final reminder: 3 days before</span><span>Next cycle opens: 7 days before its due date</span></div><p className="editor-safety-note">Admins only choose the recurring due day. Reminder timing is fixed and cannot be changed. Once submitted, the location stays Complete until seven days before the next due date.</p></section>
     </div>
     <button className="primary-button schedule-save" disabled={saving} onClick={() => void saveAndApply()}>{saving ? "Applying schedules…" : "Save schedules & apply deadlines"}</button>
     <section className="admin-panel">

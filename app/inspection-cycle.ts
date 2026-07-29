@@ -11,15 +11,15 @@ export function inspectionCycleFor(date: Date, dueDay: number): InspectionCycle 
   const safeDueDay = Math.min(28, Math.max(1, dueDay));
   const currentDue = atEndOfDay(date.getFullYear(), date.getMonth(), safeDueDay);
   const currentOpens = new Date(currentDue);
-  currentOpens.setDate(currentOpens.getDate() - 14);
+  currentOpens.setDate(currentOpens.getDate() - 7);
   const due = date >= currentOpens ? currentDue : atEndOfDay(date.getFullYear(), date.getMonth() - 1, safeDueDay);
   const opens = new Date(due);
-  opens.setDate(opens.getDate() - 14);
+  opens.setDate(opens.getDate() - 7);
   const secondReminder = new Date(due);
-  secondReminder.setDate(secondReminder.getDate() - 5);
+  secondReminder.setDate(secondReminder.getDate() - 3);
   const nextDue = atEndOfDay(due.getFullYear(), due.getMonth() + 1, safeDueDay);
   const nextOpens = new Date(nextDue);
-  nextOpens.setDate(nextOpens.getDate() - 14);
+  nextOpens.setDate(nextOpens.getDate() - 7);
   return { due, opens, secondReminder, nextOpens };
 }
 
