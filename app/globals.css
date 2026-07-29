@@ -2111,6 +2111,7 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 .schedule-preview span { font-size: 13px; }
 
 .inspection-deadline-card {
+  grid-template-columns: minmax(0, 1fr) auto;
   margin: 18px 0;
   padding: 20px 24px;
   border: 1px solid #bfd8cc;
@@ -2123,9 +2124,23 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   background: #fff8e5;
 }
 
+.inspection-deadline-card.overdue {
+  border-color: #e6a8a1;
+  background: #fff1ef;
+}
+
 .inspection-deadline-card h2,
 .inspection-deadline-card p { margin: 3px 0; }
-.inspection-deadline-card > span { font-weight: 900; }
+.inspection-deadline-card > span {
+  align-self: start;
+  padding: 8px 12px;
+  border: 1px solid #cddbd5;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
 .deadline-overdue { border-color: #d96d62 !important; }
 
 @media (max-width: 760px) {

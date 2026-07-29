@@ -115,6 +115,10 @@ export default function Home() {
   const canAdmin = profile?.role === "admin" || profile?.role === "owner";
   const canInspect = canAdmin || profile?.role === "director";
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [view, portalMode]);
+
   useEffect(() => onAuthStateChanged(auth, async (next) => {
     setUser(next);
     setProfile(null);
@@ -1409,7 +1413,7 @@ function DirectorView({ userId, directorName, location, setLocation }: { userId:
       <button data-tour="inspection-button" className="primary-button" onClick={() => { setCompletionMessage(""); setWorkflowOpen(true); }}>Start or resume monthly inspection</button>
     </section>
     {completionMessage && <p className="inspection-success" role="status">{completionMessage}</p>}
-    <section className={`inspection-deadline-card ${monthlyStatus === "Due soon" ? "due-soon" : ""}`}><div><p className="eyebrow">Monthly schedule</p><h2>{monthlyStatus}</h2><p>{monthlyDetail}</p></div><span>{new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric" }).format(new Date())}</span></section>
+    <section className={`inspection-deadline-card ${monthlyStatus.toLowerCase().replace(" ", "-")}`}><div><p className="eyebrow">Monthly inspection schedule</p><h2>{monthlyStatus}</h2><p>{monthlyDetail}</p></div><span>{new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric" }).format(new Date())}</span></section>
     <div className="stat-grid inspection-feature-grid">
       <article><span>86</span><div><b>Checklist items</b><small>Across six audit sections</small></div></article>
       <article><span>✓</span><div><b>Automatic drafts</b><small>Resume unfinished work anytime</small></div></article>
