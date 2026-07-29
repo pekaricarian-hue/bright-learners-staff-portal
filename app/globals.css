@@ -2096,6 +2096,19 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
 .schedule-queue small { margin-top: 3px; color: #718095; }
 .schedule-status { padding: 6px 10px; border-radius: 999px; background: #fff0c9; color: #835b00; font-size: 11px; font-weight: 900; }
 .schedule-status.overdue { background: #fbe1dd; color: #a43e37; }
+.schedule-status.complete { background: #dff2e2; color: #28723c; }
+
+.schedule-preview {
+  display: grid;
+  gap: 6px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #eef6f4;
+  color: #526e70;
+}
+
+.schedule-preview b { color: #17345d; }
+.schedule-preview span { font-size: 13px; }
 
 .inspection-deadline-card {
   margin: 18px 0;

@@ -27,6 +27,7 @@ import CertificateLibrary from "./certificate-library";
 import AdminManagement from "./admin-management";
 import AdminContent from "./admin-content";
 import AdminScheduling from "./admin-scheduling";
+import { inspectionCompletedInCycle, inspectionCycleFor } from "./inspection-cycle";
 
 type View = "dashboard" | "employee" | "resources" | "director" | "inspection-reports" | "admin" | "admin-staff" | "admin-content" | "admin-scheduling" | "admin-inspections" | "admin-certificates";
 type PortalMode = "chooser" | "learning" | "inspection" | "admin";
@@ -1386,24 +1387,20 @@ function DirectorView({ userId, directorName, location, setLocation }: { userId:
       getDoc(doc(db, "complianceSchedules", "default")),
     ]).then(([inspectionSnapshot, scheduleSnapshot]) => {
       const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const dueDay = scheduleSnapshot.data()?.inspectionDueDay || 15;
+      const cycle = inspectionCycleFor(now, dueDay);
       const completed = inspectionSnapshot.docs.some((item) => {
         const data = item.data();
         const completedAt = data.completedAt?.toDate?.();
-        return data.location === location && data.status === "submitted" && completedAt && completedAt >= start;
+        return data.location === location && data.status === "submitted" && inspectionCompletedInCycle(completedAt, cycle);
       });
       if (completed) {
         setMonthlyStatus("Complete");
-        setMonthlyDetail("This month’s inspection has been submitted.");
+        setMonthlyDetail(`Submitted. The next inspection cycle opens ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(cycle.nextOpens)}.`);
         return;
       }
-      const reminderDay = scheduleSnapshot.data()?.inspectionReminderDay || 20;
-      const secondReminderDay = scheduleSnapshot.data()?.inspectionSecondReminderDay || 25;
-      const configuredDueDate = scheduleSnapshot.data()?.inspectionDueDate;
-      const overdueDay = scheduleSnapshot.data()?.inspectionDueDay || 1;
-      const inspectionDueDate = configuredDueDate ? new Date(`${configuredDueDate}T23:59:59`) : new Date(now.getFullYear(), now.getMonth() + 1, overdueDay);
-      setMonthlyStatus(now.getDate() >= reminderDay ? "Due soon" : "Due this month");
-      setMonthlyDetail(now.getDate() >= secondReminderDay ? `Second reminder: submit before ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(inspectionDueDate)}.` : `Submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(inspectionDueDate)}.`);
+      setMonthlyStatus(now > cycle.due ? "Overdue" : "Due soon");
+      setMonthlyDetail(now >= cycle.secondReminder ? `Final reminder: submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(cycle.due)}.` : `Submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(cycle.due)}.`);
     }).catch(() => undefined);
   }, [location, completionMessage]);
   return <div className="content">
