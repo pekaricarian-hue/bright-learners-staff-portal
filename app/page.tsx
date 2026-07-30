@@ -399,7 +399,7 @@ export default function Home() {
         {activePortal === "learning" && view === "dashboard" && <DashboardView userId={user.uid} name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} openCertificates={() => setCertificateOpen(true)} />}
         {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} email={profile.email} displayName={profile.displayName} location={assignedLocation} province={assignedProvince} />}
         {view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} showAll={activePortal === "admin"} />}
-        {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} setLocation={setLocation} />}
+        {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} />}
         {activePortal === "inspection" && view === "inspection-reports" && <InspectionReports userId={user.uid} directorName={profile.displayName} />}
         {activePortal === "admin" && view === "admin" && <AdminView setView={setView} />}
         {activePortal === "admin" && view === "admin-staff" && <AdminManagement openContent={() => setView("admin-content")} />}
@@ -490,7 +490,7 @@ function GuidedTour({ portal, canAdmin, finish, close }: { portal: "learning" | 
     ],
     inspection: [
       ["Inspection dashboard", "Start and resume facility checklists from this dashboard. This workspace is separate from employee learning.", "[data-tour='inspection-dashboard-tab']"],
-      ["Start or resume an inspection", "Choose the academy, start its required checklist, save an unfinished draft and continue it later without losing responses.", "[data-tour='inspection-button']"],
+      ["Start or resume an inspection", "Your assigned academy is shown here. Start its required checklist, save an unfinished draft and continue it later without losing responses.", "[data-tour='inspection-button']"],
       ["Reports and drafts", "Open this page to resume saved drafts and review every completed inspection in your own history.", "[data-tour='inspection-reports-tab']"],
       ["Your profile", "Use this menu to switch portals, edit your name, restart the walkthrough or sign out.", "[data-tour='profile-menu']"],
     ],
@@ -1353,7 +1353,7 @@ function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: str
   return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} quiz={quiz} />;
 }
 
-function DirectorView({ userId, directorName, location, setLocation }: { userId: string; directorName: string; location: string; setLocation: (v: string) => void }) {
+function DirectorView({ userId, directorName, location }: { userId: string; directorName: string; location: string }) {
   const [workflowOpen, setWorkflowOpen] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [monthlyStatus, setMonthlyStatus] = useState("Due this month");
@@ -1382,7 +1382,7 @@ function DirectorView({ userId, directorName, location, setLocation }: { userId:
   }, [location, completionMessage]);
   return <div className="content">
     <section data-tour="inspection-start" className="action-row">
-      <div><p className="eyebrow">Inspection location</p><select value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map(l => <option key={l}>{l}</option>)}</select><small>Choose the academy where you are completing this inspection.</small></div>
+      <div><p className="eyebrow">Assigned inspection location</p><div className="assigned-inspection-location">{location}</div><small>Only an administrator can change your assigned academy.</small></div>
       <button data-tour="inspection-button" className="primary-button" onClick={() => { setCompletionMessage(""); setWorkflowOpen(true); }}>Start or resume monthly inspection</button>
     </section>
     {completionMessage && <p className="inspection-success" role="status">{completionMessage}</p>}

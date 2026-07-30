@@ -844,6 +844,17 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   color: #728099;
 }
 
+.assigned-inspection-location {
+  min-width: 260px;
+  margin-top: 6px;
+  padding: 13px 14px;
+  border: 1.5px solid #b9c9c3;
+  border-radius: 9px;
+  background: #f7faf8;
+  color: var(--ink);
+  font-weight: 900;
+}
+
 .inspection-success {
   margin: 18px 0;
   padding: 16px 18px;
