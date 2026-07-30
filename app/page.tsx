@@ -123,6 +123,7 @@ export default function Home() {
   }, [view, portalMode]);
 
   useEffect(() => onAuthStateChanged(auth, async (next) => {
+    setLoading(true);
     setUser(next);
     setProfile(null);
     setPortalMode("chooser");
@@ -315,7 +316,7 @@ export default function Home() {
     }
   }
 
-  if (loading) return <main className="loading">Opening your learning space…</main>;
+  if (loading || (user && signupSaving && !profile)) return <main className="loading">Opening your learning space…</main>;
 
   if (!user) {
     return (
