@@ -170,7 +170,7 @@ exports.sendQueuedNotification = onDocumentCreated({
       <strong>Role:</strong> ${escapeHtml(data.role)}<br>
       <strong>Province:</strong> ${escapeHtml(data.province)}</p>`,
     buttonLabel: "Review staff account",
-    buttonUrl: portalLink(),
+    buttonUrl: portalLink("/?portal=admin&view=staff"),
   });
   const result = await sendEmail({
     idempotencyKey: `queue-${notificationId}`,

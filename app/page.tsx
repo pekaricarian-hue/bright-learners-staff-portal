@@ -135,7 +135,13 @@ export default function Home() {
           const savedProfile = snapshot.data() as StaffProfile;
           setProfile(savedProfile);
           setLocation(savedProfile.location);
-          if (!savedProfile.toursCompleted?.learning) {
+          const requestedPortal = new URLSearchParams(window.location.search).get("portal");
+          const requestedView = new URLSearchParams(window.location.search).get("view");
+          const canOpenAdmin = savedProfile.role === "admin" || savedProfile.role === "owner";
+          if (requestedPortal === "admin" && requestedView === "staff" && canOpenAdmin) {
+            setPortalMode("admin");
+            setView("admin-staff");
+          } else if (!savedProfile.toursCompleted?.learning) {
             setTourPortal("learning");
             setTourOpen(true);
           }
