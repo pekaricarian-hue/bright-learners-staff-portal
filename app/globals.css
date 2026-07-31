@@ -310,6 +310,10 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   box-shadow: 0 14px 28px #152d4f12;
 }
 
+.dashboard-stat-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 @media (max-width: 700px) {
   .guided-tour.anchored {
     left: 16px !important;

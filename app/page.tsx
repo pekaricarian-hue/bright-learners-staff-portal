@@ -593,7 +593,6 @@ function PortalChooser({ name, canAdmin, choose, signOutUser }: { name: string; 
 
 function DashboardView({ userId, name, location, province, setView, openCertificates }: { userId: string; name: string; location: string; province: Province; setView: (view: View) => void; openCertificates: () => void }) {
   const [completedModules, setCompletedModules] = useState<number[]>([]);
-  const [dueAt, setDueAt] = useState<Date | null>(null);
   const moduleCount = province === "AB" ? albertaModules.length : saskatchewanModules.length;
   const completion = Math.round((completedModules.length / moduleCount) * 100);
   const progressId = `${userId}_${province.toLowerCase()}-orientation`;
@@ -601,19 +600,14 @@ function DashboardView({ userId, name, location, province, setView, openCertific
   useEffect(() => {
     getDoc(doc(db, "progress", progressId)).then((snapshot) => {
       setCompletedModules(snapshot.exists() ? snapshot.data().completedModules || [] : []);
-      setDueAt(snapshot.data()?.dueAt?.toDate?.() || null);
     }).catch(() => setCompletedModules([]));
   }, [progressId]);
-  const daysRemaining = dueAt ? Math.ceil((dueAt.getTime() - Date.now()) / 86400000) : null;
-  const deadlineLabel = completedModules.length === moduleCount ? "Complete" : !dueAt ? "Not assigned" : daysRemaining! < 0 ? "Overdue" : daysRemaining! <= 7 ? "Due soon" : "Due date";
-  const deadlineDate = dueAt ? new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric" }).format(dueAt) : "Set by admin";
 
   return <div className="content dashboard-content">
     <section className="dashboard-greeting"><div><p className="eyebrow">{location} • {province === "SK" ? "Saskatchewan" : "Alberta"} course</p><h1>Welcome, {name.split(" ")[0]}.</h1><p>Continue your assigned onboarding or find a policy for your academy.</p></div></section>
     <div className="dashboard-stat-grid">
       <article data-tour="module-progress" className="pastel-blue"><span className="line-symbol">✓</span><b>8</b><strong>Required modules</strong><small>Your saved progress appears in My Learning</small></article>
       <article className="pastel-green"><span className="line-symbol">◎</span><b>100%</b><strong>Required pass mark</strong><small>Every knowledge check</small></article>
-      <article className={`pastel-yellow ${deadlineLabel === "Overdue" ? "deadline-overdue" : ""}`}><span className="line-symbol">!</span><b>{deadlineLabel}</b><strong>Orientation deadline</strong><small>{deadlineDate}</small></article>
       <article className="pastel-lilac"><span className="line-symbol">◷</span><b>12 min</b><strong>Next lesson</strong><small>Welcome to Bright Learners</small></article>
     </div>
     <div className="dashboard-columns">
