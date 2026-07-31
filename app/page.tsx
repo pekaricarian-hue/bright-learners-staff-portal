@@ -16,7 +16,7 @@ import {
   signOut,
   updatePassword,
 } from "firebase/auth";
-import { arrayUnion, collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { arrayUnion, collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import InspectionWorkflow from "./inspection-workflow";
 import ExitConfirmation from "./exit-confirmation";
@@ -150,6 +150,14 @@ export default function Home() {
   async function createProfileForUser(account: User, firstName: string, lastName: string, selectedLocation: string) {
     const accountEmail = account.email?.toLowerCase() ?? "";
     if (!accountEmail) throw new Error("Account email is unavailable.");
+    const userRef = doc(db, "users", account.uid);
+    const existingProfileSnapshot = await getDoc(userRef);
+    if (existingProfileSnapshot.exists()) {
+      const existingProfile = existingProfileSnapshot.data() as StaffProfile;
+      setProfile(existingProfile);
+      setLocation(existingProfile.location);
+      return;
+    }
     const invitationSnapshot = await getDoc(doc(db, "staffInvitations", accountEmail)).catch(() => null);
     const invitation = invitationSnapshot?.exists() ? invitationSnapshot.data() : null;
     const finalLocation = invitation?.location || directorLocations[accountEmail] || selectedLocation;
@@ -171,38 +179,52 @@ export default function Home() {
       renewalIntervalMonths: 12,
       toursCompleted: {},
     };
-    await setDoc(doc(db, "users", account.uid), {
-      ...newProfile,
-      notificationStatus: "pending",
-      notificationRecipient: "admin@brightlearnersacademy.net",
-      notificationType: "staff-signup",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      lastSignInAt: serverTimestamp(),
+    const created = await runTransaction(db, async (transaction) => {
+      const currentProfile = await transaction.get(userRef);
+      if (currentProfile.exists()) return false;
+      transaction.set(userRef, {
+        ...newProfile,
+        notificationStatus: "pending",
+        notificationRecipient: "admin@brightlearnersacademy.net",
+        notificationType: "staff-signup",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        lastSignInAt: serverTimestamp(),
+      });
+      transaction.set(doc(db, "progress", `${account.uid}_${newProfile.province.toLowerCase()}-orientation`), {
+        userId: account.uid,
+        courseId: `${newProfile.province.toLowerCase()}-orientation`,
+        completedModules: [],
+        currentModule: 0,
+        renewalIntervalMonths: 12,
+        assignedAt,
+        dueAt,
+        dueSoonDays: scheduleSnapshot?.data()?.courseDueSoonDays || 7,
+        updatedAt: serverTimestamp(),
+      });
+      transaction.set(doc(db, "notificationQueue", `${account.uid}_staff-signup`), {
+        type: "staff-signup",
+        actorId: account.uid,
+        recipient: "admin@brightlearnersacademy.net",
+        staffName: newProfile.displayName,
+        staffEmail: newProfile.email,
+        location: newProfile.location,
+        province: newProfile.province,
+        role: newProfile.role,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+      return true;
     });
-    await setDoc(doc(db, "progress", `${account.uid}_${newProfile.province.toLowerCase()}-orientation`), {
-      userId: account.uid,
-      courseId: `${newProfile.province.toLowerCase()}-orientation`,
-      completedModules: [],
-      currentModule: 0,
-      renewalIntervalMonths: 12,
-      assignedAt,
-      dueAt,
-      dueSoonDays: scheduleSnapshot?.data()?.courseDueSoonDays || 7,
-      updatedAt: serverTimestamp(),
-    });
-    await setDoc(doc(db, "notificationQueue", `${account.uid}_staff-signup`), {
-      type: "staff-signup",
-      actorId: account.uid,
-      recipient: "admin@brightlearnersacademy.net",
-      staffName: newProfile.displayName,
-      staffEmail: newProfile.email,
-      location: newProfile.location,
-      province: newProfile.province,
-      role: newProfile.role,
-      status: "pending",
-      createdAt: serverTimestamp(),
-    });
+    if (!created) {
+      const savedProfile = await getDoc(userRef);
+      if (savedProfile.exists()) {
+        const existingProfile = savedProfile.data() as StaffProfile;
+        setProfile(existingProfile);
+        setLocation(existingProfile.location);
+      }
+      return;
+    }
     if (invitation) await setDoc(doc(db, "staffInvitations", accountEmail), { status: "accepted", acceptedBy: account.uid, acceptedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
     setProfile(newProfile);
     setLocation(finalLocation);
