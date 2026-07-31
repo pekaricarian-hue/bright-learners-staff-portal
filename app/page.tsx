@@ -169,10 +169,7 @@ export default function Home() {
     const invitation = invitationSnapshot?.exists() ? invitationSnapshot.data() : null;
     const finalLocation = invitation?.location || directorLocations[accountEmail] || selectedLocation;
     const assignedRole = invitation?.role || roleForEmail(accountEmail);
-    const scheduleSnapshot = await getDoc(doc(db, "complianceSchedules", "default")).catch(() => null);
-    const onboardingDueDays = scheduleSnapshot?.data()?.onboardingDueDays || 14;
     const assignedAt = new Date();
-    const dueAt = new Date(assignedAt.getTime() + onboardingDueDays * 86400000);
     const newProfile: StaffProfile = {
       uid: account.uid,
       email: accountEmail,
@@ -205,8 +202,6 @@ export default function Home() {
         currentModule: 0,
         renewalIntervalMonths: 12,
         assignedAt,
-        dueAt,
-        dueSoonDays: scheduleSnapshot?.data()?.courseDueSoonDays || 7,
         updatedAt: serverTimestamp(),
       });
       transaction.set(doc(db, "notificationQueue", `${account.uid}_staff-signup`), {

@@ -549,7 +549,6 @@ exports.runDailyComplianceEmails = onSchedule({
   const schedule = await loadSchedule();
   const tasks = [
     sendInspectionReminders(now, schedule),
-    sendCourseOverdueDigest(now),
     sendRenewalDigest(now, schedule.renewalReminderDays),
   ];
   const results = await Promise.allSettled(tasks);

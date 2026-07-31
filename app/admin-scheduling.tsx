@@ -1,22 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { inspectionCompletedInCycle, inspectionCycleFor } from "./inspection-cycle";
 
 type Schedule = {
-  onboardingDueDays: number;
-  courseDueSoonDays: number;
   renewalMonths: number;
   renewalReminderDays: number;
   inspectionDueDay: number;
 };
-type QueueItem = { id: string; type: "Course" | "Inspection" | "Renewal"; person: string; location: string; due: Date; status: "Complete" | "Due soon" | "Overdue" };
+type QueueItem = { id: string; type: "Inspection" | "Renewal"; person: string; location: string; due: Date; status: "Complete" | "Due soon" | "Overdue" };
 
 const defaults: Schedule = {
-  onboardingDueDays: 14,
-  courseDueSoonDays: 7,
   renewalMonths: 12,
   renewalReminderDays: 30,
   inspectionDueDay: 15,
@@ -34,27 +30,15 @@ export default function AdminScheduling() {
   const [dismissedQueueKeys, setDismissedQueueKeys] = useState<string[]>([]);
 
   async function loadQueue(activeSchedule: Schedule, dismissed = dismissedQueueKeys) {
-    const [usersSnapshot, progressSnapshot, inspectionsSnapshot, certificatesSnapshot] = await Promise.all([
+    const [usersSnapshot, inspectionsSnapshot, certificatesSnapshot] = await Promise.all([
       getDocs(collection(db, "users")),
-      getDocs(collection(db, "progress")),
       getDocs(collection(db, "inspections")),
       getDocs(collection(db, "certificates")),
     ]);
     const now = new Date();
-    const dueSoonCutoff = new Date(now.getTime() + activeSchedule.courseDueSoonDays * 86400000);
     const ownerIds = new Set(usersSnapshot.docs.filter((item) => String(item.data().email || "").toLowerCase() === standaloneOwnerEmail).map((item) => item.id));
-    const users = new Map(usersSnapshot.docs.filter((item) => !ownerIds.has(item.id)).map((item) => [item.id, item.data()]));
     const organizationInspections = inspectionsSnapshot.docs.filter((item) => !ownerIds.has(item.data().directorId));
     const items: QueueItem[] = [];
-    progressSnapshot.docs.forEach((item) => {
-      const data = item.data();
-      if ((data.completedModules || []).length >= 8) return;
-      const user = users.get(data.userId);
-      if (!user || user.status === "inactive") return;
-      const due = data.dueAt?.toDate?.();
-      if (!due || due > dueSoonCutoff) return;
-      items.push({ id: item.id, type: "Course", person: user.displayName || user.email, location: user.location, due, status: due < now ? "Overdue" : "Due soon" });
-    });
     const cycle = inspectionCycleFor(now, activeSchedule.inspectionDueDay);
     academyNames.forEach((location) => {
       const completedInspection = organizationInspections.find((item) => {
@@ -114,21 +98,10 @@ export default function AdminScheduling() {
       const scheduleUpdate: Record<string, unknown> = { ...schedule, updatedAt: serverTimestamp() };
       if (!inspectionTrackingStartedAt) scheduleUpdate.inspectionTrackingStartedAt = serverTimestamp();
       await setDoc(doc(db, "complianceSchedules", "default"), scheduleUpdate, { merge: true });
-      const [usersSnapshot, progressSnapshot] = await Promise.all([getDocs(collection(db, "users")), getDocs(collection(db, "progress"))]);
-      const users = new Map(usersSnapshot.docs.filter((item) => String(item.data().email || "").toLowerCase() !== standaloneOwnerEmail).map((item) => [item.id, item.data()]));
-      await Promise.all(progressSnapshot.docs.map(async (item) => {
-        const data = item.data();
-        if ((data.completedModules || []).length >= 8 || data.dueAt) return;
-        const user = users.get(data.userId);
-        if (!user || user.status === "inactive") return;
-        const assigned = data.assignedAt?.toDate?.() || new Date();
-        const dueAt = new Date(assigned.getTime() + schedule.onboardingDueDays * 86400000);
-        await updateDoc(doc(db, "progress", item.id), { dueAt, dueSoonDays: schedule.courseDueSoonDays, updatedAt: serverTimestamp() });
-      }));
       const activeTrackingStart = inspectionTrackingStartedAt || new Date();
       setInspectionTrackingStartedAt(activeTrackingStart);
       await loadQueue(schedule);
-      setMessage("Scheduling saved and deadlines applied to existing incomplete course assignments.");
+      setMessage("Inspection and certificate schedules saved.");
     } catch {
       setMessage("Scheduling could not be applied. Try again.");
     } finally { setSaving(false); }
@@ -137,14 +110,14 @@ export default function AdminScheduling() {
   const numberField = (label: string, key: keyof Schedule, min: number, max: number) => <label>{label}<input type="number" min={min} max={max} value={schedule[key]} onChange={(event) => setSchedule({ ...schedule, [key]: Number(event.target.value) })} /></label>;
 
   return <div className="content admin-scheduling">
-    <div className="page-intro"><p className="eyebrow">Compliance calendar</p><h1>Schedules & overdue work</h1><p>These dates control dashboard status, automatic reminders and overdue email reports.</p></div>
+    <div className="page-intro"><p className="eyebrow">Compliance calendar</p><h1>Schedules & overdue work</h1><p>Manage monthly inspection timing and annual certificate renewal tracking.</p></div>
     {message && <p className="admin-management-message" role="status">{message}</p>}
     <div className="admin-management-summary"><article><b>{summary.overdue}</b><span>Overdue</span></article><article><b>{summary.dueSoon}</b><span>Due soon</span></article><article><b>{summary.inspections}</b><span>Monthly inspections outstanding</span></article></div>
     <div className="schedule-editor-grid">
-      <section className="admin-panel"><p className="eyebrow">Employee learning</p><h2>Course deadlines</h2>{numberField("New employee course due after (days)", "onboardingDueDays", 1, 90)}{numberField("Show due soon this many days before", "courseDueSoonDays", 1, 30)}{numberField("Certificate renewal interval (months)", "renewalMonths", 1, 36)}{numberField("Renewal reminder begins (days before)", "renewalReminderDays", 1, 120)}</section>
+      <section className="admin-panel"><p className="eyebrow">Employee learning</p><h2>Certificate renewals</h2>{numberField("Certificate renewal interval (months)", "renewalMonths", 1, 36)}{numberField("Renewal reminder begins (days before)", "renewalReminderDays", 1, 120)}<p className="editor-safety-note">Employee orientation has no due-date setting. Renewal tracking begins after a certificate is issued.</p></section>
       <section className="admin-panel"><p className="eyebrow">Facility compliance</p><h2>Monthly inspection timing</h2>{numberField("Monthly inspection due day", "inspectionDueDay", 1, 28)}<div className="schedule-preview"><b>Automatic monthly reminders</b><span>First reminder: 7 days before</span><span>Final reminder: 3 days before</span><span>Next cycle opens: 7 days before its due date</span></div><p className="editor-safety-note">Admins only choose the recurring due day. Reminder timing is fixed and cannot be changed. Once submitted, the location stays Complete until seven days before the next due date.</p></section>
     </div>
-    <button className="primary-button schedule-save" disabled={saving} onClick={() => void saveAndApply()}>{saving ? "Applying schedules…" : "Save schedules & apply deadlines"}</button>
+    <button className="primary-button schedule-save" disabled={saving} onClick={() => void saveAndApply()}>{saving ? "Saving schedules…" : "Save schedules"}</button>
     <section className="admin-panel">
       <div className="section-heading"><div><p className="eyebrow">Live queue</p><h2>Due and overdue records</h2></div><span>{queue.length} records</span></div>
       {queue.length ? <div className="schedule-queue">{queue.map((item) => <article key={`${item.type}-${item.id}`}><span className={`schedule-status ${item.status.toLowerCase().replace(" ", "-")}`}>{item.status}</span><div><b>{item.person}</b><small>{item.type} · {item.location}</small></div><strong>{item.status === "Complete" ? `Finished · next cycle ${dateLabel(inspectionCycleFor(new Date(), schedule.inspectionDueDay).nextOpens)}` : `Due ${dateLabel(item.due)}`}</strong>{item.status === "Overdue" && <button className="text-button danger-text" onClick={() => void dismissQueueItem(item)}>Remove from view</button>}</article>)}</div> : <p className="inspection-record-message">No compliance records are currently available.</p>}
