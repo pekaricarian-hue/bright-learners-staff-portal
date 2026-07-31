@@ -122,7 +122,7 @@ export default function AdminScheduling() {
   const numberField = (label: string, key: keyof Schedule, min: number, max: number) => <label>{label}<input type="number" min={min} max={max} value={schedule[key]} onChange={(event) => setSchedule({ ...schedule, [key]: Number(event.target.value) })} /></label>;
 
   return <div className="content admin-scheduling">
-    <div className="page-intro"><p className="eyebrow">Compliance calendar</p><h1>Schedules & overdue work</h1><p>These dates control dashboard status now and will control automatic Resend reminders after email delivery is connected.</p></div>
+    <div className="page-intro"><p className="eyebrow">Compliance calendar</p><h1>Schedules & overdue work</h1><p>These dates control dashboard status, automatic reminders and overdue email reports.</p></div>
     {message && <p className="admin-management-message" role="status">{message}</p>}
     <div className="admin-management-summary"><article><b>{summary.overdue}</b><span>Overdue</span></article><article><b>{summary.dueSoon}</b><span>Due soon</span></article><article><b>{summary.inspections}</b><span>Monthly inspections outstanding</span></article></div>
     <div className="schedule-editor-grid">
