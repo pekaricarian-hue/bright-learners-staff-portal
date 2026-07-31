@@ -10,13 +10,15 @@ export default function CertificateLibrary() {
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState("All locations");
   const [selected, setSelected] = useState<CertificateRecord | null>(null);
-  const [downloading, setDownloading] = useState("");
+const [downloading, setDownloading] = useState("");
+  const standaloneOwnerEmail = "pekaric.arian@gmail.com";
 
   useEffect(() => {
     let active = true;
-    getDocs(collection(db, "certificates")).then((snapshot) => {
+    Promise.all([getDocs(collection(db, "certificates")), getDocs(collection(db, "users"))]).then(([snapshot, users]) => {
       if (!active) return;
-      setCertificates(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as CertificateRecord)).sort((a, b) => a.location.localeCompare(b.location) || a.employeeName.localeCompare(b.employeeName)));
+      const ownerIds = new Set(users.docs.filter((item) => String(item.data().email || "").toLowerCase() === standaloneOwnerEmail).map((item) => item.id));
+      setCertificates(snapshot.docs.filter((item) => !ownerIds.has(item.data().userId)).map((item) => ({ id: item.id, ...item.data() } as CertificateRecord)).sort((a, b) => a.location.localeCompare(b.location) || a.employeeName.localeCompare(b.employeeName)));
       setLoading(false);
     }).catch(() => setLoading(false));
     return () => { active = false; };

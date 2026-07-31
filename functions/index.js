@@ -11,6 +11,20 @@ initializeApp();
 const db = getFirestore();
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const ADMIN_EMAIL = "admin@brightlearnersacademy.net";
+const STANDALONE_OWNER_EMAIL = "pekaric.arian@gmail.com";
+
+async function standaloneOwnerIds() {
+  const snapshot = await db.collection("users").get();
+  return new Set(snapshot.docs
+    .filter((item) => String(item.data().email || "").toLowerCase() === STANDALONE_OWNER_EMAIL)
+    .map((item) => item.id));
+}
+
+async function isStandaloneOwner(userId) {
+  if (!userId) return false;
+  const snapshot = await db.collection("users").doc(userId).get();
+  return String(snapshot.data()?.email || "").toLowerCase() === STANDALONE_OWNER_EMAIL;
+}
 const DEFAULT_PORTAL_URL = "https://bright-learners-staff-portal--bright-learners-academy-app.us-east4.hosted.app";
 const PORTAL_URL = process.env.PORTAL_URL || DEFAULT_PORTAL_URL;
 const FROM_EMAIL = "Bright Learners Staff Portal <notifications@notifications.brightlearnersacademy.net>";
@@ -263,6 +277,10 @@ exports.sendQueuedNotification = onDocumentCreated({
   if (!data || data.status === "sent") return;
   const notificationId = event.params.notificationId;
   if (data.type !== "staff-signup") return;
+  if (String(data.staffEmail || "").toLowerCase() === STANDALONE_OWNER_EMAIL) {
+    await event.data.ref.set({ status: "skipped-owner", attemptedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return;
+  }
 
   const html = emailShell({
     preheader: `${data.staffName} created a Bright Learners staff account.`,
@@ -299,6 +317,10 @@ exports.sendCertificateCompletion = onDocumentCreated({
 }, async (event) => {
   const data = event.data?.data();
   if (!data) return;
+  if (await isStandaloneOwner(data.userId)) {
+    await event.data.ref.set({ notificationStatus: "skipped-owner", notificationSentAt: FieldValue.serverTimestamp() }, { merge: true });
+    return;
+  }
   const checklist = Array.isArray(data.moduleChecklist)
     ? `<ol>${data.moduleChecklist.map((item) => `<li>${escapeHtml(item.title)} — Passed</li>`).join("")}</ol>`
     : "";
@@ -342,6 +364,10 @@ exports.sendInspectionCompletion = onDocumentUpdated({
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!after || before?.status === "completed" || after.status !== "completed") return;
+  if (await isStandaloneOwner(after.directorId || after.userId)) {
+    await event.data.after.ref.set({ notificationStatus: "skipped-owner", notificationSentAt: FieldValue.serverTimestamp() }, { merge: true });
+    return;
+  }
   const responses = Object.values(after.responses || {});
   const failed = responses.filter((item) => item?.result === "fail").length;
   const notApplicable = responses.filter((item) => item?.result === "na").length;
@@ -391,13 +417,15 @@ function monthlyDueDate(now, dueDay) {
 }
 
 async function inspectionCompletedForMonth(location, due) {
-  const snapshot = await db.collection("inspections")
-    .where("location", "==", location)
-    .get();
+  const [snapshot, ownerIds] = await Promise.all([
+    db.collection("inspections").where("location", "==", location).get(),
+    standaloneOwnerIds(),
+  ]);
   return snapshot.docs.some((item) => {
     const data = item.data();
     const completed = data.completedAt?.toDate?.();
     return data.status === "completed"
+      && !ownerIds.has(data.directorId || data.userId)
       && completed
       && completed.getUTCFullYear() === due.getUTCFullYear()
       && completed.getUTCMonth() === due.getUTCMonth();
@@ -446,7 +474,7 @@ async function sendCourseOverdueDigest(now) {
     const data = item.data();
     if ((data.completedModules || []).length >= 8) return [];
     const user = users.get(data.userId);
-    if (!user) return [];
+    if (!user || String(user.email || "").toLowerCase() === STANDALONE_OWNER_EMAIL) return [];
     const due = data.dueAt?.toDate?.();
     return [{
       name: user.displayName || user.email,
@@ -480,9 +508,12 @@ async function sendCourseOverdueDigest(now) {
 
 async function sendRenewalDigest(now, reminderDays) {
   const cutoff = Timestamp.fromDate(addDays(now, reminderDays));
-  const snapshot = await db.collection("certificates").where("expiresAt", "<=", cutoff).get();
+  const [snapshot, ownerIds] = await Promise.all([
+    db.collection("certificates").where("expiresAt", "<=", cutoff).get(),
+    standaloneOwnerIds(),
+  ]);
   const records = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
-    .filter((item) => item.expiresAt?.toDate?.());
+    .filter((item) => item.expiresAt?.toDate?.() && !ownerIds.has(item.userId));
   if (!records.length) return;
   const rows = records.map((item) => {
     const expiry = item.expiresAt.toDate();

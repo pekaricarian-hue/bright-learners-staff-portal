@@ -20,6 +20,7 @@ type InspectionResponse = {
 type InspectionRecord = {
   id: string;
   userId?: string;
+  directorId?: string;
   directorName: string;
   location: string;
   status: "draft" | "completed";
@@ -73,7 +74,15 @@ export default function InspectionReports({ userId, directorName, adminMode = fa
         const snapshot = adminMode
           ? await getDocs(collection(db, "inspections"))
           : await getDocs(query(collection(db, "inspections"), where("directorId", "==", userId)));
-        const next = snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as InspectionRecord)).sort((a, b) => {
+        let excludedOwnerIds = new Set<string>();
+        if (adminMode) {
+          const users = await getDocs(collection(db, "users"));
+          excludedOwnerIds = new Set(users.docs.filter((item) => String(item.data().email || "").toLowerCase() === "pekaric.arian@gmail.com").map((item) => item.id));
+        }
+        const next = snapshot.docs
+          .map((item) => ({ id: item.id, ...item.data() } as InspectionRecord))
+          .filter((item) => !adminMode || !item.directorId || !excludedOwnerIds.has(item.directorId))
+          .sort((a, b) => {
           const aDate = dateValue(a.completedAt || a.updatedAt || a.startedAt)?.getTime() || 0;
           const bDate = dateValue(b.completedAt || b.updatedAt || b.startedAt)?.getTime() || 0;
           return bDate - aDate;

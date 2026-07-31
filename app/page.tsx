@@ -76,6 +76,7 @@ const directorLocations: Record<string, string> = {
   "willowgrove@brightlearnersacademy.net": "Willowgrove",
 };
 const ownerEmails = new Set(["pekaric.arian@gmail.com"]);
+const standaloneOwnerEmail = "pekaric.arian@gmail.com";
 const adminEmails = new Set(["admin@brightlearnersacademy.net"]);
 const directorEmails = new Set([
   ...Object.keys(directorLocations),
@@ -427,7 +428,7 @@ export default function Home() {
         {activePortal === "learning" && view === "dashboard" && <DashboardView userId={user.uid} name={profile.displayName} location={assignedLocation} province={assignedProvince} setView={setView} openCertificates={() => setCertificateOpen(true)} />}
         {activePortal === "learning" && view === "employee" && <EmployeeView userId={user.uid} email={profile.email} displayName={profile.displayName} location={assignedLocation} province={assignedProvince} />}
         {view === "resources" && <ResourcesView location={assignedLocation} province={assignedProvince} showAll={activePortal === "admin"} />}
-        {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} />}
+        {activePortal === "inspection" && view === "director" && <DirectorView userId={user.uid} directorName={profile.displayName} location={location} standaloneOwner={profile.email.toLowerCase() === standaloneOwnerEmail} />}
         {activePortal === "inspection" && view === "inspection-reports" && <InspectionReports userId={user.uid} directorName={profile.displayName} />}
         {activePortal === "admin" && view === "admin" && <AdminView setView={setView} />}
         {activePortal === "admin" && view === "admin-staff" && <AdminManagement openContent={() => setView("admin-content")} />}
@@ -1393,7 +1394,7 @@ function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: str
   return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} quiz={quiz} />;
 }
 
-function DirectorView({ userId, directorName, location }: { userId: string; directorName: string; location: string }) {
+function DirectorView({ userId, directorName, location, standaloneOwner }: { userId: string; directorName: string; location: string; standaloneOwner: boolean }) {
   const [workflowOpen, setWorkflowOpen] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [monthlyStatus, setMonthlyStatus] = useState("Due this month");
@@ -1409,7 +1410,10 @@ function DirectorView({ userId, directorName, location }: { userId: string; dire
       const completed = inspectionSnapshot.docs.some((item) => {
         const data = item.data();
         const completedAt = data.completedAt?.toDate?.();
-        return data.location === location && data.status === "completed" && inspectionCompletedInCycle(completedAt, cycle);
+        return data.location === location
+          && data.status === "completed"
+          && !(standaloneOwner && data.directorId === userId)
+          && inspectionCompletedInCycle(completedAt, cycle);
       });
       if (completed) {
         setMonthlyStatus("Complete");
@@ -1419,7 +1423,7 @@ function DirectorView({ userId, directorName, location }: { userId: string; dire
       setMonthlyStatus(now > cycle.due ? "Overdue" : "Due soon");
       setMonthlyDetail(now >= cycle.secondReminder ? `Final reminder: submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(cycle.due)}.` : `Submit by ${new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric" }).format(cycle.due)}.`);
     }).catch(() => undefined);
-  }, [location, completionMessage]);
+  }, [location, completionMessage, standaloneOwner, userId]);
   return <div className="content">
     <section data-tour="inspection-start" className="action-row">
       <div><p className="eyebrow">Assigned inspection location</p><div className="assigned-inspection-location">{location}</div><small>Only an administrator can change your assigned academy.</small></div>
@@ -1455,15 +1459,20 @@ function AdminView({ setView }: { setView: (view: View) => void }) {
       getDocs(collection(db, "inspections")),
       getDocs(collection(db, "certificates")),
     ]).then(([users, progress, academies, inspections, certificates]) => {
-      const activeStaff = users.docs.filter((item) => item.data().status !== "inactive");
-      const completed = progress.docs.filter((item) => (item.data().completedModules || []).length >= 8).length;
+      const organizationUsers = users.docs.filter((item) => String(item.data().email || "").toLowerCase() !== standaloneOwnerEmail);
+      const organizationUserIds = new Set(organizationUsers.map((item) => item.id));
+      const organizationProgress = progress.docs.filter((item) => organizationUserIds.has(item.data().userId));
+      const organizationInspections = inspections.docs.filter((item) => !item.data().directorId || organizationUserIds.has(item.data().directorId));
+      const organizationCertificates = certificates.docs.filter((item) => organizationUserIds.has(item.data().userId));
+      const activeStaff = organizationUsers.filter((item) => item.data().status !== "inactive");
+      const completed = organizationProgress.filter((item) => (item.data().completedModules || []).length >= 8).length;
       const now = Date.now();
-      const overdue = progress.docs.filter((item) => {
+      const overdue = organizationProgress.filter((item) => {
         const due = item.data().dueAt?.toDate?.();
         return due && due.getTime() < now && (item.data().completedModules || []).length < 8;
       }).length;
-      const followUps = inspections.docs.filter((item) => item.data().status === "submitted" && Object.values(item.data().responses || {}).some((response) => (response as { result?: string }).result === "fail")).length;
-      const renewals = certificates.docs.filter((item) => {
+      const followUps = organizationInspections.filter((item) => item.data().status === "completed" && Object.values(item.data().responses || {}).some((response) => (response as { result?: string }).result === "fail")).length;
+      const renewals = organizationCertificates.filter((item) => {
         const expiry = item.data().expiresAt?.toDate?.();
         return expiry && expiry.getTime() - now <= 60 * 86400000;
       }).length;
@@ -1481,8 +1490,8 @@ function AdminView({ setView }: { setView: (view: View) => void }) {
       setLocationOverview(locationNames.map((name) => {
         const people = activeStaff.filter((item) => item.data().location === name);
         const userIds = new Set(people.map((item) => item.id));
-        const locationProgress = progress.docs.filter((item) => userIds.has(item.data().userId));
-        const locationInspections = inspections.docs.filter((item) => item.data().location === name && item.data().status === "completed");
+        const locationProgress = organizationProgress.filter((item) => userIds.has(item.data().userId));
+        const locationInspections = organizationInspections.filter((item) => item.data().location === name && item.data().status === "completed");
         return {
           name,
           staff: people.length,

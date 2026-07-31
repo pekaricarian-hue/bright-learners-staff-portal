@@ -22,6 +22,7 @@ const defaults: Schedule = {
   inspectionDueDay: 15,
 };
 const academyNames = ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"];
+const standaloneOwnerEmail = "pekaric.arian@gmail.com";
 const dateLabel = (date: Date) => new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(date);
 
 export default function AdminScheduling() {
@@ -41,7 +42,9 @@ export default function AdminScheduling() {
     ]);
     const now = new Date();
     const dueSoonCutoff = new Date(now.getTime() + activeSchedule.courseDueSoonDays * 86400000);
-    const users = new Map(usersSnapshot.docs.map((item) => [item.id, item.data()]));
+    const ownerIds = new Set(usersSnapshot.docs.filter((item) => String(item.data().email || "").toLowerCase() === standaloneOwnerEmail).map((item) => item.id));
+    const users = new Map(usersSnapshot.docs.filter((item) => !ownerIds.has(item.id)).map((item) => [item.id, item.data()]));
+    const organizationInspections = inspectionsSnapshot.docs.filter((item) => !ownerIds.has(item.data().directorId));
     const items: QueueItem[] = [];
     progressSnapshot.docs.forEach((item) => {
       const data = item.data();
@@ -54,7 +57,7 @@ export default function AdminScheduling() {
     });
     const cycle = inspectionCycleFor(now, activeSchedule.inspectionDueDay);
     academyNames.forEach((location) => {
-      const completedInspection = inspectionsSnapshot.docs.find((item) => {
+      const completedInspection = organizationInspections.find((item) => {
         const data = item.data();
         const completed = data.completedAt?.toDate?.();
         return data.location === location && data.status === "completed" && inspectionCompletedInCycle(completed, cycle);
@@ -69,7 +72,7 @@ export default function AdminScheduling() {
         status: completedInspection ? "Complete" : now > cycle.due ? "Overdue" : "Due soon",
       });
     });
-    certificatesSnapshot.docs.forEach((item) => {
+    certificatesSnapshot.docs.filter((item) => !ownerIds.has(item.data().userId)).forEach((item) => {
       const data = item.data();
       const due = data.expiresAt?.toDate?.();
       if (!due || due.getTime() - now.getTime() > activeSchedule.renewalReminderDays * 86400000) return;
@@ -112,7 +115,7 @@ export default function AdminScheduling() {
       if (!inspectionTrackingStartedAt) scheduleUpdate.inspectionTrackingStartedAt = serverTimestamp();
       await setDoc(doc(db, "complianceSchedules", "default"), scheduleUpdate, { merge: true });
       const [usersSnapshot, progressSnapshot] = await Promise.all([getDocs(collection(db, "users")), getDocs(collection(db, "progress"))]);
-      const users = new Map(usersSnapshot.docs.map((item) => [item.id, item.data()]));
+      const users = new Map(usersSnapshot.docs.filter((item) => String(item.data().email || "").toLowerCase() !== standaloneOwnerEmail).map((item) => [item.id, item.data()]));
       await Promise.all(progressSnapshot.docs.map(async (item) => {
         const data = item.data();
         if ((data.completedModules || []).length >= 8 || data.dueAt) return;
