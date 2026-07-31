@@ -1,7 +1,7 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { InspectionSection, monthlyInspectionSections } from "./inspection-data";
@@ -36,6 +36,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
   const [saving, setSaving] = useState(false);
   const [uploadingItem, setUploadingItem] = useState("");
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
+  const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
   const [validationIssue, setValidationIssue] = useState<null | {
     title: string;
     message: string;
@@ -49,6 +50,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
   const answered = allItems.filter((item) => responses[item.id]?.result).length;
   const failed = allItems.filter((item) => responses[item.id]?.result === "fail").length;
   const completionPercent = Math.round((answered / allItems.length) * 100);
+  const saveChain = useRef<Promise<boolean>>(Promise.resolve(true));
 
   useEffect(() => {
     let active = true;
@@ -81,6 +83,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
           location,
           type: "monthly-self-assessment",
           status: "draft",
+          sections,
           responses: {},
           overallNotes: "",
           sectionIndex: 0,
@@ -96,10 +99,11 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     return () => { active = false; };
   }, [directorName, location, pointerId, userId]);
 
-  async function persist(nextResponses: Record<string, Response>, nextSection = sectionIndex, nextNotes = overallNotes) {
+  function persist(nextResponses: Record<string, Response>, nextSection = sectionIndex, nextNotes = overallNotes) {
     if (!inspectionId) return false;
     setSaving(true);
-    try {
+    const save = saveChain.current.then(async () => {
+      try {
       await setDoc(doc(db, "inspections", inspectionId), {
         responses: nextResponses,
         overallNotes: nextNotes,
@@ -109,12 +113,16 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       }, { merge: true });
       setMessage("Progress saved.");
       return true;
-    } catch {
-      setMessage("Save failed. Your answers remain on this screen; try again before leaving.");
-      return false;
-    } finally {
-      setSaving(false);
-    }
+      } catch {
+        setMessage("Save failed. Your answers remain on this screen; try again before leaving.");
+        return false;
+      }
+    });
+    saveChain.current = save;
+    void save.finally(() => {
+      if (saveChain.current === save) setSaving(false);
+    });
+    return save;
   }
 
   function updateItem(itemId: string, patch: Partial<Response>) {
@@ -171,6 +179,24 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     }
   }
 
+  async function discardInspection() {
+    if (!inspectionId) return;
+    setSaving(true);
+    try {
+      await saveChain.current;
+      await deleteDoc(doc(db, "inspections", inspectionId));
+      await deleteDoc(doc(db, "inspectionDrafts", pointerId));
+      setDiscardConfirmationOpen(false);
+      setExitConfirmationOpen(false);
+      close();
+    } catch {
+      setMessage("The draft could not be discarded. Please try again.");
+      setDiscardConfirmationOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function submitInspection() {
     const unanswered = allItems.filter((item) => !responses[item.id]?.result);
     const undocumentedExceptions = allItems.filter((item) =>
@@ -207,6 +233,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         overallNotes,
         answeredCount: allItems.length,
         failedCount: failed,
+        sections,
         notificationStatus: "pending",
         notificationRecipient: "admin@brightlearnersacademy.net",
         notificationType: "inspection-completed",
@@ -282,7 +309,17 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       saving={saving}
       stay={() => setExitConfirmationOpen(false)}
       saveAndExit={saveAndExit}
+      discard={() => setDiscardConfirmationOpen(true)}
     />}
+    {discardConfirmationOpen && <div className="inspection-validation-backdrop">
+      <section className="inspection-validation-dialog compact-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="discard-title">
+        <button className="confirmation-close" onClick={() => setDiscardConfirmationOpen(false)} aria-label="Cancel discard">×</button>
+        <p className="eyebrow">Delete draft</p>
+        <h2 id="discard-title">Are you sure?</h2>
+        <p>This unfinished inspection and its saved answers will be permanently removed.</p>
+        <button className="danger-button" disabled={saving} onClick={() => void discardInspection()}>{saving ? "Discarding..." : "Yes, discard inspection"}</button>
+      </section>
+    </div>}
     {validationIssue && <div className="inspection-validation-backdrop">
       <section className="inspection-validation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="inspection-validation-title">
         <span aria-hidden="true">!</span>

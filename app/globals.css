@@ -476,6 +476,99 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   margin-top: 18px;
 }
 
+.checklist-section-actions,
+.inspection-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.add-checklist-section {
+  margin-top: 16px;
+}
+
+.danger-text,
+.danger-outline {
+  color: #9d3d35 !important;
+}
+
+.danger-outline {
+  border-color: #d9948d !important;
+}
+
+.danger-button {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  background: #9d3d35;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.compact-confirmation {
+  position: relative;
+  max-width: 430px;
+}
+
+.confirmation-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #cfd9df;
+  border-radius: 50%;
+  background: #fff;
+  color: #17345b;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.location-overview-card {
+  min-width: 0;
+}
+
+.location-overview-card select {
+  min-width: 190px;
+  padding: 10px 12px;
+  border: 1px solid #cbd7dd;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.location-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(100px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.location-overview-grid article {
+  padding: 18px;
+  border-radius: 16px;
+  background: #f3f7f6;
+}
+
+.location-overview-grid b,
+.location-overview-grid span {
+  display: block;
+}
+
+.location-overview-grid b {
+  margin-bottom: 5px;
+  color: #17345b;
+  font-size: 28px;
+}
+
+@media (max-width: 800px) {
+  .location-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .location-overview-card .section-heading { align-items: stretch; flex-direction: column; }
+  .location-overview-card select { width: 100%; }
+}
+
 .module-content-editor article {
   display: grid;
   grid-template-columns: 44px 1fr 1.2fr 120px;

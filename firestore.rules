@@ -113,7 +113,9 @@ service cloud.firestore {
       allow update: if signedIn() &&
         resource.data.directorId == request.auth.uid &&
         request.resource.data.directorId == request.auth.uid;
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (signedIn()
+        && resource.data.directorId == request.auth.uid
+        && resource.data.status == "draft");
     }
 
     match /inspectionDrafts/{draftId} {
@@ -124,7 +126,7 @@ service cloud.firestore {
       allow update: if signedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid;
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /certificates/{certificateId} {

@@ -4,6 +4,7 @@ const { defineSecret } = require("firebase-functions/params");
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { logger } = require("firebase-functions");
+const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 
 initializeApp();
 
@@ -97,7 +98,7 @@ function emailShell({ preheader, heading, body, buttonLabel, buttonUrl, footer }
   </body></html>`;
 }
 
-async function sendEmail({ idempotencyKey, type, to, cc = [], subject, html, metadata = {} }) {
+async function sendEmail({ idempotencyKey, type, to, cc = [], subject, html, metadata = {}, attachments = [] }) {
   const logRef = db.collection("notificationDeliveries").doc(idempotencyKey);
   const existing = await logRef.get();
   if (existing.exists && existing.data().status === "sent") return existing.data();
@@ -128,6 +129,7 @@ async function sendEmail({ idempotencyKey, type, to, cc = [], subject, html, met
         reply_to: ADMIN_EMAIL,
         subject,
         html,
+        attachments,
       }),
     });
     const result = await response.json();
@@ -148,6 +150,107 @@ async function sendEmail({ idempotencyKey, type, to, cc = [], subject, html, met
     }, { merge: true });
     throw error;
   }
+}
+
+async function locationDirectorEmail(location) {
+  const id = String(location || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const snapshot = await db.collection("academyLocations").doc(id).get();
+  return snapshot.exists && snapshot.data().directorEmail
+    ? String(snapshot.data().directorEmail).trim()
+    : directorEmails[location];
+}
+
+function wrapText(text, font, size, maxWidth) {
+  const words = String(text || "").split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) line = candidate;
+    else {
+      if (line) lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+async function certificatePdf(data, certificateId) {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([792, 612]);
+  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  page.drawRectangle({ x: 0, y: 0, width: 792, height: 612, color: rgb(0.976, 0.953, 0.89) });
+  page.drawRectangle({ x: 34, y: 30, width: 724, height: 552, color: rgb(1, 0.992, 0.972), borderColor: rgb(0.09, 0.2, 0.37), borderWidth: 3 });
+  page.drawRectangle({ x: 45, y: 41, width: 702, height: 530, borderColor: rgb(0.96, 0.82, 0.45), borderWidth: 7 });
+  const centre = (text, y, size, font = regular, color = rgb(0.09, 0.2, 0.37)) => {
+    page.drawText(text, { x: (792 - font.widthOfTextAtSize(text, size)) / 2, y, size, font, color });
+  };
+  centre("BRIGHT LEARNERS ACADEMY", 518, 19, bold);
+  centre("CERTIFICATE OF COMPLETION", 466, 15, bold);
+  centre("This certifies that", 421, 14);
+  centre(data.employeeName || "Employee", 361, 34, bold);
+  centre("has successfully completed the Bright Learners Academy", 317, 13);
+  centre(data.courseTitle || "Employee Orientation Program", 280, 21, bold);
+  centre(`${data.location} · ${data.province === "SK" ? "Saskatchewan" : "Alberta"}`, 246, 12);
+  centre(`Completed ${dateLabel(data.issuedAt)}`, 218, 11);
+  centre(`Valid until ${dateLabel(data.expiresAt)}`, 197, 11);
+  page.drawCircle({ x: 665, y: 124, size: 44, color: rgb(0.09, 0.2, 0.37), borderColor: rgb(0.96, 0.82, 0.45), borderWidth: 4 });
+  centre("Internal employee orientation record", 76, 9);
+  centre(`Certificate ID: ${certificateId}`, 59, 8);
+  return Buffer.from(await pdf.save()).toString("base64");
+}
+
+async function inspectionPdf(data, inspectionId) {
+  const pdf = await PDFDocument.create();
+  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  let page = pdf.addPage([612, 792]);
+  let y = 742;
+  const margin = 42;
+  const addPage = () => { page = pdf.addPage([612, 792]); y = 750; };
+  const write = (text, size = 9, font = regular, color = rgb(0.18, 0.25, 0.34), gap = 4) => {
+    const lines = wrapText(text, font, size, 528);
+    if (y - lines.length * (size + 3) < 42) addPage();
+    for (const line of lines) {
+      page.drawText(line, { x: margin, y, size, font, color });
+      y -= size + 3;
+    }
+    y -= gap;
+  };
+  write("BRIGHT LEARNERS ACADEMY", 12, bold, rgb(0.09, 0.2, 0.37), 8);
+  write("Monthly Facility Inspection Report", 21, bold, rgb(0.09, 0.2, 0.37), 10);
+  write(`Location: ${data.location}`, 11, bold);
+  write(`Completed by: ${data.directorName}`, 10);
+  write(`Completed: ${dateLabel(data.completedAt)}`, 10);
+  write(`Inspection ID: ${inspectionId}`, 8);
+  y -= 8;
+  const itemText = new Map((data.sections || []).flatMap((section) => (section.items || []).map((item) => [item.id, item.text])));
+  for (const [itemId, response] of Object.entries(data.responses || {})) {
+    const result = response?.result === "na" ? "N/A" : String(response?.result || "unanswered").toUpperCase();
+    write(`${itemId}  [${result}]  ${itemText.get(itemId) || ""}`, 10, bold, response?.result === "fail" ? rgb(0.63, 0.18, 0.15) : rgb(0.09, 0.2, 0.37), 2);
+    if (response?.note) write(`Explanation: ${response.note}`);
+    if (response?.correctiveAction) write(`Corrective action: ${response.correctiveAction}`);
+    if (response?.responsiblePerson || response?.dueDate) write(`Responsible: ${response.responsiblePerson || "Not assigned"}${response.dueDate ? ` · Due ${response.dueDate}` : ""}`);
+    if (response?.photoUrl) {
+      try {
+        const imageResponse = await fetch(response.photoUrl);
+        const bytes = new Uint8Array(await imageResponse.arrayBuffer());
+        const contentType = imageResponse.headers.get("content-type") || "";
+        const image = contentType.includes("png") ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+        const scaled = image.scale(Math.min(240 / image.width, 150 / image.height, 1));
+        if (y - scaled.height < 42) addPage();
+        page.drawImage(image, { x: margin, y: y - scaled.height, width: scaled.width, height: scaled.height });
+        y -= scaled.height + 10;
+      } catch {
+        write("Photo evidence is retained in the secure portal record.", 8);
+      }
+    }
+    y -= 5;
+  }
+  if (data.overallNotes) write(`Overall notes: ${data.overallNotes}`, 10, bold);
+  return Buffer.from(await pdf.save()).toString("base64");
 }
 
 exports.sendQueuedNotification = onDocumentCreated({
@@ -175,7 +278,7 @@ exports.sendQueuedNotification = onDocumentCreated({
   const result = await sendEmail({
     idempotencyKey: `queue-${notificationId}`,
     type: "staff-signup",
-    to: ADMIN_EMAIL,
+    to: await locationDirectorEmail(data.location),
     subject: `New staff account: ${data.staffName} — ${data.location}`,
     html,
     metadata: { actorId: data.actorId, location: data.location },
@@ -218,6 +321,10 @@ exports.sendCertificateCompletion = onDocumentCreated({
     subject: `Orientation completed: ${data.employeeName} — ${data.location}`,
     html,
     metadata: { certificateId: event.params.certificateId, userId: data.userId, location: data.location },
+    attachments: [{
+      filename: `${data.employeeName || "Employee"}_${data.location}_Bright_Learners_Certificate.pdf`.replace(/[^a-z0-9_.-]+/gi, "_"),
+      content: await certificatePdf(data, event.params.certificateId),
+    }],
   });
   await event.data.ref.set({
     notificationStatus: result.status,
@@ -241,23 +348,27 @@ exports.sendInspectionCompletion = onDocumentUpdated({
   const html = emailShell({
     preheader: `${after.directorName} submitted the ${after.location} monthly inspection.`,
     heading: "Monthly inspection submitted",
-    body: `<p><strong>${escapeHtml(after.directorName)}</strong> completed and signed the monthly facility inspection.</p>
+    body: `<p><strong>${escapeHtml(after.directorName)}</strong> completed the monthly facility inspection.</p>
       <p><strong>Location:</strong> ${escapeHtml(after.location)}<br>
       <strong>Completed:</strong> ${escapeHtml(dateLabel(after.completedAt))}<br>
       <strong>Checklist responses:</strong> ${escapeHtml(after.answeredCount || responses.length)}<br>
       <strong>Failed items:</strong> ${failed}<br>
       <strong>N/A items:</strong> ${notApplicable}</p>
-      <p>The signed report, explanations, corrective actions and photographs are available in the Administration Console.</p>`,
+      <p>The complete PDF report is attached. It is also available in the portal with explanations, corrective actions and photographs.</p>`,
     buttonLabel: "View inspection report",
     buttonUrl: portalLink(),
   });
   const result = await sendEmail({
     idempotencyKey: `inspection-${event.params.inspectionId}`,
     type: "inspection-completed",
-    to: ADMIN_EMAIL,
+    to: await locationDirectorEmail(after.location),
     subject: `Inspection submitted: ${after.location} — ${after.directorName}`,
     html,
     metadata: { inspectionId: event.params.inspectionId, location: after.location, directorId: after.directorId },
+    attachments: [{
+      filename: `${after.directorName || "Director"}_${after.location}_Inspection_${dateOnly(after.completedAt?.toDate?.() || new Date())}.pdf`.replace(/[^a-z0-9_.-]+/gi, "_"),
+      content: await inspectionPdf(after, event.params.inspectionId),
+    }],
   });
   await event.data.after.ref.set({
     notificationStatus: result.status,
@@ -300,7 +411,7 @@ async function sendInspectionReminders(now, schedule) {
 
   await Promise.all(academyNames.map(async (location) => {
     if (await inspectionCompletedForMonth(location, due)) return;
-    const directorEmail = directorEmails[location];
+    const directorEmail = await locationDirectorEmail(location);
     if (!directorEmail) return;
     const overdueDays = Math.max(0, -days);
     const type = days === 7 ? "inspection-reminder-7" : days === 3 ? "inspection-reminder-3" : days === 0 ? "inspection-due" : "inspection-overdue";
@@ -310,7 +421,7 @@ async function sendInspectionReminders(now, schedule) {
       heading: days < 0 ? "Monthly inspection is overdue" : "Monthly inspection reminder",
       body: `<p>The <strong>${escapeHtml(location)}</strong> monthly facility inspection is <strong>${escapeHtml(timing)}</strong>.</p>
         <p><strong>Due date:</strong> ${escapeHtml(dateLabel(due))}</p>
-        <p>Open the Director Inspection portal to start or resume the checklist. The admin is copied on this reminder.</p>`,
+        <p>Open the Director Inspection portal to start or resume the checklist.</p>`,
       buttonLabel: "Open inspection portal",
       buttonUrl: portalLink(),
     });
@@ -318,7 +429,6 @@ async function sendInspectionReminders(now, schedule) {
       idempotencyKey: `${type}-${dateOnly(due)}-${location.toLowerCase().replaceAll(" ", "-")}`,
       type,
       to: directorEmail,
-      cc: [ADMIN_EMAIL],
       subject: `${days < 0 ? "Overdue" : "Reminder"}: ${location} monthly inspection ${timing}`,
       html,
       metadata: { location, dueDate: dateOnly(due), daysFromDue: days },

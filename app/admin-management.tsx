@@ -26,7 +26,7 @@ const defaults: Academy[] = [
 ];
 const safeId = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export default function AdminManagement({ openContent }: { openContent: () => void }) {
+export default function AdminManagement({ openContent: _openContent }: { openContent: () => void }) {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [academies, setAcademies] = useState<Academy[]>([]);
   const [search, setSearch] = useState("");
@@ -102,7 +102,7 @@ export default function AdminManagement({ openContent }: { openContent: () => vo
     {message && <p className="admin-management-message" role="status">{message}</p>}
     <div className="admin-management-summary"><article><b>{staff.filter((item) => item.status !== "inactive").length}</b><span>Active staff</span></article><article><b>{staff.filter((item) => item.role === "director").length}</b><span>Directors</span></article><article><b>{academies.filter((item) => item.active).length}</b><span>Locations</span></article></div>
     <section className="admin-panel">
-      <div className="section-heading"><div><p className="eyebrow">Directory</p><h2>Staff accounts</h2></div><button className="outline-button" onClick={openContent}>Edit courses & checklists</button></div>
+      <div className="section-heading"><div><p className="eyebrow">Directory</p><h2>Staff accounts</h2></div></div>
       <div className="admin-directory-filters"><input aria-label="Search staff" placeholder="Search name or email" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Filter by location" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}><option>All locations</option>{academies.map((item) => <option key={item.id}>{item.name}</option>)}</select></div>
       {loading ? <p>Loading staff…</p> : <div className="staff-directory">{visible.map((person) => <article key={person.uid}>
         <span className="staff-avatar">{person.displayName?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?"}</span>

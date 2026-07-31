@@ -809,7 +809,7 @@ const abLessonSlides: OrientationSlide[][] = [
     { kicker: "Your role", title: "Safety and relationships come first", body: "Educators actively supervise, prepare learning experiences, observe development and maintain welcoming spaces. If you are unsure, pause and ask the director.", points: ["Protect children before completing another task", "Communicate concerns immediately", "Follow licensing, health and centre procedures"], ref: "Bright Learners Orientation, May 2026 - slides 8-14" },
     { kicker: "Families", title: "Build trust every day", body: "Greet families by name, listen carefully, repeat important care instructions and share useful updates. Keep personal information private.", media: "Family greeting scenario", ref: "Bright Learners Orientation, May 2026 - slides 11-12, 36-39" },
     { kicker: "Professional conduct", title: "Respect is non-negotiable", body: "Harassment, bullying, mental abuse and sexual misconduct are not accepted. Raise concerns promptly through centre leadership.", ref: "Bright Learners Orientation, May 2026 - slides 13-15; Bright Learners Academy Final Staff Handbook, May 2026 - pages 14-17 and 22-24 (shared policy)" },
-    { kicker: "First day", title: "Help each child and family feel welcome", body: "Prepare the room, greet the family, confirm allergies and care instructions, support separation calmly and provide a positive pickup update.", media: "First-day welcome video", ref: "Bright Learners Orientation, May 2026 - slides 56-58" },
+    { kicker: "First day", title: "Help each child and family feel welcome", body: "Prepare the room, greet the family, confirm allergies and care instructions, support separation calmly and provide a positive pickup update.", media: "First-day welcome illustration", ref: "Bright Learners Orientation, May 2026 - slides 56-58" },
     { kicker: "Leadership", title: "Know who to ask at your academy", body: "Your director coordinates daily operations, staffing, safety questions, family concerns and licensing follow-up. Raise urgent issues immediately instead of waiting for a meeting or the end of your shift.", points: ["Sundance - Margaret Ferriss", "Midnapore - Karla Buick", "Sylvan Lake - Sherry Murphy", "Millwoods - Evelyn Mahmoudi"], media: "Director introductions and academy photos", ref: "Bright Learners Orientation, May 2026 - slide 5; Bright Learners location directory" },
     { kicker: "Ready for work", title: "Arrive prepared to supervise", body: "Be ready to take responsibility at the start of your scheduled shift. Review the room, attendance, allergies, care instructions, staffing plan and any information handed over by the previous educator.", points: ["Store personal belongings securely", "Put away personal devices", "Clarify changes before accepting the group"], ref: "Bright Learners Orientation, May 2026 - role and safety expectations, slides 7-14 and 40-47; Bright Learners Academy Final Staff Handbook, May 2026 - pages 17-18 and 29-31 (shared policy)" },
     { kicker: "Chain of communication", title: "Say what happened, not what you assume", body: "When reporting a concern, give the director clear facts: who was involved, what you observed, where and when it happened, what immediate action you took and what still needs attention.", media: "Fact-based handover scenario", ref: "Bright Learners Orientation, May 2026 - communication expectations, slides 11-15 and 36-39" },
@@ -927,7 +927,7 @@ const abLessonSlides: OrientationSlide[][] = [
     { kicker: "Incident response", title: "Care first, then document", body: "Provide appropriate first aid, notify the director and family, preserve factual details and complete the required report promptly.", media: "Incident documentation example", ref: "Bright Learners Orientation, May 2026 - incident reporting; Alberta Child Care Licensing Handbook" },
     { kicker: "Serious events", title: "Escalate immediately", body: "A serious injury, missing child, emergency service involvement or other reportable incident requires immediate director involvement and the applicable reporting process.", ref: "Alberta Child Care Licensing Handbook - serious incidents" },
     { kicker: "Emergency readiness", title: "Know exits, attendance and emergency supplies", body: "Know your evacuation route, alternate exit, muster point, emergency contacts and the location of attendance records and emergency bags.", ref: "Bright Learners Orientation, May 2026 - emergency procedures" },
-    { kicker: "During an emergency", title: "Maintain supervision and account for everyone", body: "Follow the centre plan, bring attendance information, count children throughout and do not re-enter until authorized.", media: "Evacuation drill video", ref: "Bright Learners Orientation, May 2026 - emergency procedures; Alberta licensing requirements" },
+    { kicker: "During an emergency", title: "Maintain supervision and account for everyone", body: "Follow the centre plan, bring attendance information, count children throughout and do not re-enter until authorized.", media: "Evacuation drill illustration", ref: "Bright Learners Orientation, May 2026 - emergency procedures; Alberta licensing requirements" },
     { kicker: "Understand behaviour", title: "Look for the need before choosing a response", body: "Behaviour communicates development, emotion, sensory needs, skill gaps or an environmental problem. Observe what happened before, what the child did and what followed, then change the support rather than labelling the child.", scenario: { situation: "A child knocks down peers' towers each day when the block area becomes crowded.", prompt: "What is a useful educator response?", response: "Protect the children and materials, calmly stop the action, help the child communicate and adjust space, materials or group size while observing what triggers the pattern." }, ref: "Bright Learners Orientation, May 2026 - positive guidance, slides 51-54; Alberta Child Care Licensing Handbook - child guidance" },
     { kicker: "Co-regulation", title: "Calm comes before teaching", body: "Use a steady voice, safe proximity and simple language. Reduce stimulation, acknowledge feelings and help the child regain control before discussing choices or repairing harm.", points: ["Keep everyone physically safe", "Use few clear words", "Offer an appropriate calming space without isolation", "Reconnect and teach after the child is ready"], ref: "Bright Learners Orientation, May 2026 - slides 51-54; Alberta child-guidance requirements" },
     { kicker: "Prohibited practices", title: "Dignity and safety cannot be used as punishment", body: "Never use physical punishment, harsh or degrading language, humiliation, threats, forced food, denial of basic needs or unsafe isolation. Do not discuss a child's behaviour publicly or require another child to enforce discipline.", scenario: { situation: "An educator says a child will not receive snack until they apologize.", prompt: "Is that acceptable guidance?", response: "No. Food and basic needs are not punishment tools. Provide snack, support regulation and teach repair using a respectful developmentally appropriate approach." }, ref: "Alberta Early Learning and Child Care Regulation, Schedule 1 - child guidance; Alberta Child Care Licensing Handbook" },
@@ -1046,21 +1046,33 @@ const quizBanks: Record<Province, QuizQuestion[][]> = {
 function WelcomeLesson() {
   const [slide, setSlide] = useState(0);
   const slides: OrientationSlide[] = [
-    { kicker: "Welcome", title: "You are now part of Bright Learners", body: "Bright Learners began in Alberta in 2015 and has grown into a multi-location childcare organization. Every location shares the same commitment: children should feel safe, known and excited to learn.", media: "Founders’ welcome video", ref: "Bright Learners Orientation, May 2026 — slides 1–3" },
+    { kicker: "Welcome", title: "You are now part of Bright Learners", body: "Bright Learners began in Alberta in 2015 and has grown into a multi-location childcare organization. Every location shares the same commitment: children should feel safe, known and excited to learn.", media: "Bright Learners welcome illustration", ref: "Bright Learners Orientation, May 2026 — slides 1–3" },
     { kicker: "Our purpose", title: "Safe, nurturing and built around each child", body: "Our mission is to support children’s physical, social, emotional and cognitive development. We recognize that every child has different strengths, interests and needs.", points: ["Create individualized learning experiences", "Build independence and positive self-esteem", "Respect culture, diversity and family partnerships"], ref: "Bright Learners Orientation, May 2026 — slide 4" },
     { kicker: "Your team", title: "Know who leads each academy", body: "Directors guide daily operations, support educators and help resolve questions about safety, programming, families and workplace expectations.", points: ["Sundance — Margaret Ferriss", "Midnapore — Karla Buick", "Sylvan Lake — Sherry Murphy", "Millwoods — Evelyn Mahmoudi", "Willowgrove — Merilyn Guzman"], media: "Leadership team photos", ref: "Bright Learners Orientation, May 2026 — slide 5" },
     { kicker: "Your role", title: "Create a safe place where children can grow", body: "Educators supervise children, prepare thoughtful learning experiences, observe development and maintain welcoming spaces.", points: ["Maintain active supervision", "Plan age-appropriate experiences", "Observe and document learning", "Follow health, safety and licensing requirements"], ref: "Bright Learners Orientation, May 2026 — slides 7–10" },
-    { kicker: "Families", title: "Build trust through everyday communication", body: "Greet families warmly, use their names, listen carefully and share useful daily updates. Protect confidentiality and raise concerns respectfully.", points: ["Share successes as well as challenges", "Confirm important care instructions", "Use face-to-face updates and Lillio appropriately", "Ask your director when you are unsure"], media: "Example family greeting video", ref: "Bright Learners Orientation, May 2026 — slides 11–12 and 36–39" },
+    { kicker: "Families", title: "Build trust through everyday communication", body: "Greet families warmly, use their names, listen carefully and share useful daily updates. Protect confidentiality and raise concerns respectfully.", points: ["Share successes as well as challenges", "Confirm important care instructions", "Use face-to-face updates and Lillio appropriately", "Ask your director when you are unsure"], media: "Family greeting illustration", ref: "Bright Learners Orientation, May 2026 — slides 11–12 and 36–39" },
     { kicker: "Non-negotiables", title: "Safety, care and communication come first", body: "These priorities guide every decision. Harassment, bullying, mental abuse and sexual misconduct are not accepted at Bright Learners.", points: ["Protect every child’s safety", "Communicate concerns immediately", "Treat children, families and colleagues with care and respect"], ref: "Bright Learners Orientation, May 2026 — slides 13–14" },
     { kicker: "Learning approach", title: "Follow children’s curiosity", body: "Bright Learners combines FLIGHT, emergent curriculum and Reggio Emilia ideas. Educators observe children’s interests and use them to plan meaningful play.", points: ["The environment acts as a third teacher", "Play supports communication, creativity and problem-solving", "Planning is shared and reviewed every week"], media: "Classroom and provocation photo gallery", ref: "Bright Learners Orientation, May 2026 — slides 16–33" },
-    { kicker: "Your first day", title: "Help every family feel welcome", body: "A family’s first experience shapes their trust in the centre. Prepare the room, greet them by name, listen closely to care instructions and support separation calmly.", points: ["Get down to the child’s level", "Ask about food, allergies and belongings", "Repeat instructions back to confirm them", "Give a positive update at pickup"], media: "First-day welcome scenario video", ref: "Bright Learners Orientation, May 2026 — slides 56–58" },
+    { kicker: "Your first day", title: "Help every family feel welcome", body: "A family’s first experience shapes their trust in the centre. Prepare the room, greet them by name, listen closely to care instructions and support separation calmly.", points: ["Get down to the child’s level", "Ask about food, allergies and belongings", "Repeat instructions back to confirm them", "Give a positive update at pickup"], media: "First-day welcome illustration", ref: "Bright Learners Orientation, May 2026 — slides 56–58" },
   ];
   return <LessonWorkspace slides={slides} slide={slide} setSlide={setSlide} />;
+}
+
+function generatedCourseImage(slide: OrientationSlide) {
+  if (slide.image) return slide.image;
+  const subject = `${slide.title} ${slide.body} ${slide.media || ""}`.toLowerCase();
+  if (/clean|saniti|disinfect|toy|laundry|outbreak/.test(subject)) return { src: "/course-media/ai-four-step-cleaning.png", alt: "Educator following a controlled cleaning and sanitizing process", credit: "AI-generated Bright Learners training illustration" };
+  if (/food|meal|allerg|temperature|serv/.test(subject)) return { src: "/course-media/ai-food-temperature.png", alt: "Educator checking food temperature and allergy controls before serving", credit: "AI-generated Bright Learners training illustration" };
+  if (/crib|sleep|infant/.test(subject)) return { src: "/course-media/ai-crib-safety-check.png", alt: "Educator completing a safety check on an empty crib", credit: "AI-generated Bright Learners training illustration" };
+  if (/emergency|evacuat|incident|fire drill/.test(subject)) return { src: "/course-media/ai-emergency-headcount.png", alt: "Educators supervising an evacuation drill and confirming attendance", credit: "AI-generated Bright Learners training illustration" };
+  if (/supervis|headcount|transition|playspace|outdoor|hazard/.test(subject)) return { src: "/course-media/ai-headcount-transition.png", alt: "Educators actively supervising a group transition and confirming attendance", credit: "AI-generated Bright Learners training illustration" };
+  return { src: "/course-media/ai-family-arrival-communication.png", alt: "Educator welcoming a child and family and confirming care information", credit: "AI-generated Bright Learners training illustration" };
 }
 
 function LessonWorkspace({ slides, slide, setSlide, quiz }: { slides: OrientationSlide[]; slide: number; setSlide: (value: number) => void; quiz?: React.ReactNode }) {
   const atQuiz = Boolean(quiz) && slide === slides.length;
   const current = slides[Math.min(slide, slides.length - 1)];
+  const courseImage = current.media ? generatedCourseImage(current) : null;
   const total = slides.length + (quiz ? 1 : 0);
   return <div className="lesson-workspace">
     <aside className="lesson-outline">
@@ -1071,7 +1083,7 @@ function LessonWorkspace({ slides, slide, setSlide, quiz }: { slides: Orientatio
     <main className="lesson-stage">
       <div className="slide-progress"><span>Lesson progress</span><div><i style={{ width: `${((slide + 1) / total) * 100}%` }} /></div><b>{slide + 1} / {total}</b></div>
       {!atQuiz ? <article className={`lesson-slide ${current.media ? "" : "text-only"}`}>
-        {current.media && <div className={`lesson-visual visual-${slide % 4}`}>{current.image ? <Image className="course-source-image" src={current.image.src} alt={current.image.alt} width={900} height={700} /> : <><span className="doodle-mark">{String(slide + 1).padStart(2, "0")}</span><b>{current.media}</b><small>Media to be supplied by Bright Learners</small></>}</div>}
+        {courseImage && <div className={`lesson-visual visual-${slide % 4}`}><Image className="course-source-image" src={courseImage.src} alt={courseImage.alt} width={900} height={700} /></div>}
         <div className="slide-copy">
           <p className="eyebrow">{current.kicker}</p><h3>{current.title}</h3><p>{current.body}</p>
           {current.points && <ul>{current.points.map((point) => <li key={point}>{point}</li>)}</ul>}
@@ -1365,10 +1377,10 @@ function ModuleQuiz({ questions, moduleIndex, goToSlide, onAttempt }: { question
 function HealthLesson({ answer, setAnswer, checkAnswer, message }: { answer: string; setAnswer: (value: string) => void; checkAnswer: () => void; message: string }) {
   const [slide, setSlide] = useState(0);
   const slides: OrientationSlide[] = [
-    { kicker: "Why this matters", title: "Healthy children, healthy centre", body: "You are often the first person to notice that a child is becoming unwell. Acting early helps protect the child, other children, families and your co-workers.", media: "Short introduction video", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
+    { kicker: "Why this matters", title: "Healthy children, healthy centre", body: "You are often the first person to notice that a child is becoming unwell. Acting early helps protect the child, other children, families and your co-workers.", media: "Health response illustration", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
     { kicker: "Recognize", title: "Watch for signs of illness", body: "Look for fever, vomiting or diarrhea, cough, trouble breathing, sore throat, chills, unusual tiredness, or red and irritated eyes. A staff member with signs of a contagious illness must not stay at the facility.", points: ["Notice changes from the child’s normal behaviour", "Pause and check when something seems wrong", "Tell the director and follow the illness procedure"], media: "Symptom illustration", ref: "AHS Health & Safety Guide, April 2025 — PDF page 18" },
     { kicker: "Respond", title: "Separate, supervise and notify", body: "Move the sick child away from the group while keeping them supervised and comfortable. Contact their parent or guardian for immediate pickup. Follow AHS direction if an outbreak is suspected.", points: ["Never leave a sick child alone", "Record what you observed", "Record who was contacted and when"], ref: "AHS Health & Safety Guide, April 2025 — PDF pages 19–20" },
-    { kicker: "Prevent spread", title: "Clean what the child used", body: "Clean and disinfect bedding, toys and other items the child used during the 48 hours before symptoms and while separated. Do this as soon as possible after pickup.", points: ["Pay special attention to mouthed toys", "Clean frequently touched surfaces", "Follow the product label and centre procedure"], media: "Cleaning demonstration video", ref: "AHS Health & Safety Guide, April 2025 — PDF pages 20–21" },
+    { kicker: "Prevent spread", title: "Clean what the child used", body: "Clean and disinfect bedding, toys and other items the child used during the 48 hours before symptoms and while separated. Do this as soon as possible after pickup.", points: ["Pay special attention to mouthed toys", "Clean frequently touched surfaces", "Follow the product label and centre procedure"], media: "Cleaning demonstration illustration", ref: "AHS Health & Safety Guide, April 2025 — PDF pages 20–21" },
   ];
   const quiz = <fieldset className="knowledge-check"><legend>Knowledge check • 1 of 1</legend><p>A toy has been in a toddler’s mouth. When must it be cleaned and disinfected?</p>
       <label><input type="radio" name="toy-frequency" value="weekly" checked={answer === "weekly"} onChange={(e) => setAnswer(e.target.value)} /> At the end of the week</label>
@@ -1397,7 +1409,7 @@ function DirectorView({ userId, directorName, location }: { userId: string; dire
       const completed = inspectionSnapshot.docs.some((item) => {
         const data = item.data();
         const completedAt = data.completedAt?.toDate?.();
-        return data.location === location && data.status === "submitted" && inspectionCompletedInCycle(completedAt, cycle);
+        return data.location === location && data.status === "completed" && inspectionCompletedInCycle(completedAt, cycle);
       });
       if (completed) {
         setMonthlyStatus("Complete");
@@ -1433,6 +1445,8 @@ function DirectorView({ userId, directorName, location }: { userId: string; dire
 
 function AdminView({ setView }: { setView: (view: View) => void }) {
   const [stats, setStats] = useState({ staff: 0, complete: 0, locations: 5, overdue: 0, followUps: 0, renewals: 0 });
+  const [locationOverview, setLocationOverview] = useState<Array<{ name: string; staff: number; directors: number; completed: number; inspections: number; followUps: number }>>([]);
+  const [selectedLocation, setSelectedLocation] = useState("Sundance");
   useEffect(() => {
     Promise.all([
       getDocs(collection(db, "users")),
@@ -1461,17 +1475,39 @@ function AdminView({ setView }: { setView: (view: View) => void }) {
         followUps,
         renewals,
       });
+      const locationNames = academies.empty
+        ? ["Sundance", "Midnapore", "Sylvan Lake", "Millwoods", "Willowgrove"]
+        : academies.docs.filter((item) => item.data().active !== false).map((item) => item.data().name);
+      setLocationOverview(locationNames.map((name) => {
+        const people = activeStaff.filter((item) => item.data().location === name);
+        const userIds = new Set(people.map((item) => item.id));
+        const locationProgress = progress.docs.filter((item) => userIds.has(item.data().userId));
+        const locationInspections = inspections.docs.filter((item) => item.data().location === name && item.data().status === "completed");
+        return {
+          name,
+          staff: people.length,
+          directors: people.filter((item) => ["director", "admin", "owner"].includes(item.data().role)).length,
+          completed: locationProgress.filter((item) => (item.data().completedModules || []).length >= 8).length,
+          inspections: locationInspections.length,
+          followUps: locationInspections.reduce((sum, item) => sum + (item.data().failedCount || 0), 0),
+        };
+      }));
     }).catch(() => undefined);
   }, []);
-  const queue = [
-    { label: `${stats.overdue} overdue course assignments`, view: "admin-staff" as View },
-    { label: `${stats.followUps} inspections with follow-ups`, view: "admin-inspections" as View },
-    { label: `${stats.renewals} certificates due or expiring soon`, view: "admin-certificates" as View },
-  ];
+  const location = locationOverview.find((item) => item.name === selectedLocation) || locationOverview[0];
   return <div className="content">
     <div data-tour="admin-overview" className="stat-grid admin-stats"><article><span>☺</span><div><b>{stats.staff}</b><small>Active staff</small></div></article><article><span>✓</span><div><b>{stats.complete}%</b><small>Training complete</small></div></article><article><span>⌂</span><div><b>{stats.locations}</b><small>Academy locations</small></div></article></div>
     <div className="admin-grid">
-      <section className="table-card"><p className="eyebrow">Needs attention</p><h2>Compliance queue</h2>{queue.map((item, index) => <div className="queue" key={item.label}><span>{index + 1}</span><b>{item.label}</b><button onClick={() => setView(item.view)}>Review</button></div>)}</section>
+      <section className="table-card location-overview-card">
+        <div className="section-heading"><div><p className="eyebrow">Location overview</p><h2>Information at a glance</h2></div><select aria-label="Choose academy location" value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)}>{locationOverview.map((item) => <option key={item.name}>{item.name}</option>)}</select></div>
+        {location ? <div className="location-overview-grid">
+          <article><b>{location.staff}</b><span>Active staff</span></article>
+          <article><b>{location.directors}</b><span>Directors & leaders</span></article>
+          <article><b>{location.completed}</b><span>Training complete</span></article>
+          <article><b>{location.inspections}</b><span>Submitted inspections</span></article>
+          <article><b>{location.followUps}</b><span>Recorded follow-ups</span></article>
+        </div> : <p>Loading academy information…</p>}
+      </section>
       <section data-tour="admin-actions" className="quick-card"><p className="handwritten">Quick actions</p><button onClick={() => setView("admin-staff")}>＋ Add or manage staff</button><button onClick={() => setView("admin-content")}>＋ Edit course modules</button><button onClick={() => setView("admin-content")}>＋ Edit inspection checklist</button><button onClick={() => setView("admin-certificates")}>↗ View compliance records</button></section>
     </div>
   </div>;

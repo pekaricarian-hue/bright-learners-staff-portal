@@ -49,6 +49,19 @@ export default function AdminContent({ albertaDefaults, saskatchewanDefaults }: 
     setSections((current) => current.map((section, index) => index === sectionIndex ? { ...section, items: section.items.filter((_, position) => position !== itemIndex) } : section));
   }
 
+  function addSection() {
+    const id = `custom-${Date.now()}`;
+    setSections((current) => [...current, {
+      id,
+      title: `New section ${current.length + 1}`,
+      items: [{ id: `${id}-1`, text: "New checklist requirement" }],
+    }]);
+  }
+
+  function removeSection(sectionIndex: number) {
+    setSections((current) => current.filter((_, index) => index !== sectionIndex));
+  }
+
   async function saveCourses() {
     setSaving(true);
     try {
@@ -88,7 +101,8 @@ export default function AdminContent({ albertaDefaults, saskatchewanDefaults }: 
     </section> : <section className="admin-panel">
       <div className="section-heading"><div><p className="eyebrow">Monthly self-assessment</p><h2>Inspection template</h2></div><b>{sections.reduce((sum, section) => sum + section.items.length, 0)} items</b></div>
       <p className="editor-safety-note">Removing an item affects future inspections only. Submitted reports retain the wording and responses captured when they were completed.</p>
-      <div className="checklist-content-editor">{sections.map((section, sectionIndex) => <details key={section.id} open={sectionIndex === 0}><summary><b>{sectionIndex + 1}. {section.title}</b><span>{section.items.length} items</span></summary><div><label>Section title<input value={section.title} onChange={(event) => updateSection(sectionIndex, event.target.value)} /></label>{section.items.map((item, itemIndex) => <article key={item.id}><span>{sectionIndex + 1}.{itemIndex + 1}</span><textarea aria-label={`Checklist item ${sectionIndex + 1}.${itemIndex + 1}`} value={item.text} onChange={(event) => updateItem(sectionIndex, itemIndex, event.target.value)} /><button aria-label={`Remove checklist item ${sectionIndex + 1}.${itemIndex + 1}`} onClick={() => removeItem(sectionIndex, itemIndex)}>Remove</button></article>)}<button className="outline-button" onClick={() => addItem(sectionIndex)}>＋ Add checklist item</button></div></details>)}</div>
+      <div className="checklist-content-editor">{sections.map((section, sectionIndex) => <details key={section.id} open={sectionIndex === 0}><summary><b>{sectionIndex + 1}. {section.title}</b><span>{section.items.length} items</span></summary><div><label>Section title<input value={section.title} onChange={(event) => updateSection(sectionIndex, event.target.value)} /></label>{section.items.map((item, itemIndex) => <article key={item.id}><span>{sectionIndex + 1}.{itemIndex + 1}</span><textarea aria-label={`Checklist item ${sectionIndex + 1}.${itemIndex + 1}`} value={item.text} onChange={(event) => updateItem(sectionIndex, itemIndex, event.target.value)} /><button aria-label={`Remove checklist item ${sectionIndex + 1}.${itemIndex + 1}`} onClick={() => removeItem(sectionIndex, itemIndex)}>Remove</button></article>)}<div className="checklist-section-actions"><button className="outline-button" onClick={() => addItem(sectionIndex)}>＋ Add checklist item</button><button className="outline-button danger-outline" onClick={() => removeSection(sectionIndex)}>Delete section</button></div></div></details>)}</div>
+      <button className="outline-button add-checklist-section" onClick={addSection}>＋ Add checklist section</button>
       <button className="primary-button admin-publish-button" disabled={saving} onClick={() => void saveChecklist()}>{saving ? "Publishing…" : "Publish checklist changes"}</button>
     </section>}
   </div>;

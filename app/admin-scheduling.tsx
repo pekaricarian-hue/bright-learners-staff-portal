@@ -30,8 +30,9 @@ export default function AdminScheduling() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [inspectionTrackingStartedAt, setInspectionTrackingStartedAt] = useState<Date | null>(null);
+  const [dismissedQueueKeys, setDismissedQueueKeys] = useState<string[]>([]);
 
-  async function loadQueue(activeSchedule: Schedule) {
+  async function loadQueue(activeSchedule: Schedule, dismissed = dismissedQueueKeys) {
     const [usersSnapshot, progressSnapshot, inspectionsSnapshot, certificatesSnapshot] = await Promise.all([
       getDocs(collection(db, "users")),
       getDocs(collection(db, "progress")),
@@ -56,7 +57,7 @@ export default function AdminScheduling() {
       const completedInspection = inspectionsSnapshot.docs.find((item) => {
         const data = item.data();
         const completed = data.completedAt?.toDate?.();
-        return data.location === location && data.status === "submitted" && inspectionCompletedInCycle(completed, cycle);
+        return data.location === location && data.status === "completed" && inspectionCompletedInCycle(completed, cycle);
       });
       const completedData = completedInspection?.data();
       items.push({
@@ -74,18 +75,29 @@ export default function AdminScheduling() {
       if (!due || due.getTime() - now.getTime() > activeSchedule.renewalReminderDays * 86400000) return;
       items.push({ id: item.id, type: "Renewal", person: data.employeeName, location: data.location, due, status: due < now ? "Overdue" : "Due soon" });
     });
-    setQueue(items.sort((a, b) => a.due.getTime() - b.due.getTime()));
+    setQueue(items.filter((item) => !dismissed.includes(`${item.type}-${item.id}-${item.due.toISOString().slice(0, 10)}`)).sort((a, b) => a.due.getTime() - b.due.getTime()));
   }
 
   useEffect(() => {
     getDoc(doc(db, "complianceSchedules", "default")).then((snapshot) => {
-      const active = snapshot.exists() ? { ...defaults, ...snapshot.data() } as Schedule : defaults;
-      const trackingStartedAt = snapshot.data()?.inspectionTrackingStartedAt?.toDate?.() || null;
+      const data = snapshot.data();
+      const active = snapshot.exists() ? { ...defaults, ...data } as Schedule : defaults;
+      const trackingStartedAt = data?.inspectionTrackingStartedAt?.toDate?.() || null;
+      const dismissed = Array.isArray(data?.dismissedQueueKeys) ? data.dismissedQueueKeys : [];
+      setDismissedQueueKeys(dismissed);
       setSchedule(active);
       setInspectionTrackingStartedAt(trackingStartedAt);
-      return loadQueue(active);
+      return loadQueue(active, dismissed);
     }).catch(() => setMessage("Unable to load compliance scheduling."));
   }, []);
+
+  async function dismissQueueItem(item: QueueItem) {
+    const key = `${item.type}-${item.id}-${item.due.toISOString().slice(0, 10)}`;
+    const next = [...new Set([...dismissedQueueKeys, key])];
+    setDismissedQueueKeys(next);
+    setQueue((current) => current.filter((candidate) => candidate !== item));
+    await setDoc(doc(db, "complianceSchedules", "default"), { dismissedQueueKeys: next, updatedAt: serverTimestamp() }, { merge: true });
+  }
 
   const summary = useMemo(() => ({
     overdue: queue.filter((item) => item.status === "Overdue").length,
@@ -132,7 +144,7 @@ export default function AdminScheduling() {
     <button className="primary-button schedule-save" disabled={saving} onClick={() => void saveAndApply()}>{saving ? "Applying schedules…" : "Save schedules & apply deadlines"}</button>
     <section className="admin-panel">
       <div className="section-heading"><div><p className="eyebrow">Live queue</p><h2>Due and overdue records</h2></div><span>{queue.length} records</span></div>
-      {queue.length ? <div className="schedule-queue">{queue.map((item) => <article key={`${item.type}-${item.id}`}><span className={`schedule-status ${item.status.toLowerCase().replace(" ", "-")}`}>{item.status}</span><div><b>{item.person}</b><small>{item.type} · {item.location}</small></div><strong>{item.status === "Complete" ? `Finished · next cycle ${dateLabel(inspectionCycleFor(new Date(), schedule.inspectionDueDay).nextOpens)}` : `Due ${dateLabel(item.due)}`}</strong></article>)}</div> : <p className="inspection-record-message">No compliance records are currently available.</p>}
+      {queue.length ? <div className="schedule-queue">{queue.map((item) => <article key={`${item.type}-${item.id}`}><span className={`schedule-status ${item.status.toLowerCase().replace(" ", "-")}`}>{item.status}</span><div><b>{item.person}</b><small>{item.type} · {item.location}</small></div><strong>{item.status === "Complete" ? `Finished · next cycle ${dateLabel(inspectionCycleFor(new Date(), schedule.inspectionDueDay).nextOpens)}` : `Due ${dateLabel(item.due)}`}</strong>{item.status === "Overdue" && <button className="text-button danger-text" onClick={() => void dismissQueueItem(item)}>Remove from view</button>}</article>)}</div> : <p className="inspection-record-message">No compliance records are currently available.</p>}
     </section>
   </div>;
 }

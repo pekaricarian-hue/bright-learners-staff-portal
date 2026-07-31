@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { jsPDF } from "jspdf";
 import { db } from "./firebase";
 import InspectionWorkflow from "./inspection-workflow";
@@ -19,12 +19,14 @@ type InspectionResponse = {
 
 type InspectionRecord = {
   id: string;
+  userId?: string;
   directorName: string;
   location: string;
   status: "draft" | "completed";
   answeredCount?: number;
   failedCount?: number;
   responses?: Record<string, InspectionResponse>;
+  sections?: typeof monthlyInspectionSections;
   overallNotes?: string;
   signatureName?: string;
   signatureData?: string;
@@ -59,6 +61,8 @@ export default function InspectionReports({ userId, directorName, adminMode = fa
   const [refreshKey, setRefreshKey] = useState(0);
   const [locationFilter, setLocationFilter] = useState("All locations");
   const [generatingPdf, setGeneratingPdf] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<InspectionRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -99,6 +103,21 @@ export default function InspectionReports({ userId, directorName, adminMode = fa
     }
   }
 
+  async function deleteRecord(record: InspectionRecord) {
+    setDeleting(true);
+    try {
+      await deleteDoc(doc(db, "inspections", record.id));
+      if (record.status === "draft" && record.userId) {
+        const pointerId = `${record.userId}_${record.location.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+        await deleteDoc(doc(db, "inspectionDrafts", pointerId)).catch(() => undefined);
+      }
+      setDeleteTarget(null);
+      setRefreshKey((value) => value + 1);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return <div className="content inspection-records-page">
     <div className="page-intro"><p className="eyebrow">{adminMode ? "Organization compliance" : "Director records"}</p><h1>{adminMode ? "All inspection records" : "Reports & drafts"}</h1><p>{adminMode ? "Review drafts and completed inspections across every Bright Learners location." : "Resume unfinished work or review completed inspection history from your profile."}</p></div>
     {adminMode && <label className="inspection-location-filter">Location<select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}><option>All locations</option>{availableLocations.map((location) => <option key={location}>{location}</option>)}</select></label>}
@@ -116,7 +135,10 @@ export default function InspectionReports({ userId, directorName, adminMode = fa
           <article className="inspection-history-row" key={record.id}>
             <span className="inspection-history-status draft">Draft</span>
             <div><b>{record.location} monthly inspection</b><small>Last saved {formattedDate(record.updatedAt)} · {record.answeredCount || 0} of {totalItems} answered</small></div>
-            {adminMode ? <span className="inspection-admin-readonly">Director draft</span> : <button className="primary-button" onClick={() => setActiveDraft(record)}>Resume</button>}
+            <div className="inspection-history-actions">
+              {!adminMode && <button className="primary-button" onClick={() => setActiveDraft(record)}>Resume</button>}
+              <button className="outline-button danger-outline" onClick={() => setDeleteTarget(record)}>Delete draft</button>
+            </div>
           </article>
         )}
       </section>
@@ -126,13 +148,23 @@ export default function InspectionReports({ userId, directorName, adminMode = fa
           <article className="inspection-history-row" key={record.id}>
             <span className="inspection-history-status complete">Complete</span>
             <div><b>{record.location} monthly inspection</b><small>Completed {formattedDate(record.completedAt)} by {record.directorName || directorName} · {record.failedCount || 0} follow-ups</small></div>
-            <div className="inspection-history-actions"><button className="outline-button" onClick={() => setActiveReport(record)}>View</button><button className="primary-button" disabled={generatingPdf === record.id} onClick={() => void downloadPdf(record)}>{generatingPdf === record.id ? "Creating..." : "Download PDF"}</button></div>
+            <div className="inspection-history-actions"><button className="outline-button" onClick={() => setActiveReport(record)}>View</button><button className="primary-button" disabled={generatingPdf === record.id} onClick={() => void downloadPdf(record)}>{generatingPdf === record.id ? "Creating..." : "Download PDF"}</button>{adminMode && <button className="outline-button danger-outline" onClick={() => setDeleteTarget(record)}>Delete record</button>}</div>
           </article>
         )}
       </section>
     </>}
     {activeDraft && <InspectionWorkflow userId={userId} directorName={directorName} location={activeDraft.location} close={() => setActiveDraft(null)} completed={() => { setActiveDraft(null); setRefreshKey((value) => value + 1); }} />}
     {activeReport && <InspectionReport record={activeReport} generating={generatingPdf === activeReport.id} download={() => void downloadPdf(activeReport)} close={() => setActiveReport(null)} />}
+    {deleteTarget && <div className="inspection-validation-backdrop">
+      <section className="inspection-validation-dialog compact-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="delete-record-title">
+        <button className="confirmation-close" onClick={() => setDeleteTarget(null)} aria-label="Cancel deletion">×</button>
+        <p className="eyebrow">{deleteTarget.status === "draft" ? "Delete draft" : "Delete submitted record"}</p>
+        <h2 id="delete-record-title">Are you sure?</h2>
+        <p>{deleteTarget.status === "completed" ? "Download the PDF before deleting it. This submitted compliance record cannot be recovered after deletion." : "This unfinished inspection and all saved answers will be permanently removed."}</p>
+        {deleteTarget.status === "completed" && <button className="outline-button" disabled={generatingPdf === deleteTarget.id} onClick={() => void downloadPdf(deleteTarget)}>{generatingPdf === deleteTarget.id ? "Creating PDF..." : "Download PDF first"}</button>}
+        <button className="danger-button" disabled={deleting} onClick={() => void deleteRecord(deleteTarget)}>{deleting ? "Deleting..." : `Yes, delete ${deleteTarget.status === "draft" ? "draft" : "record"}`}</button>
+      </section>
+    </div>}
   </div>;
 }
 
@@ -145,7 +177,7 @@ function InspectionReport({ record, generating, download, close }: { record: Ins
         <button className="inspection-close" onClick={close} aria-label="Close inspection report">×</button>
       </header>
       <div className="inspection-report-summary"><b>{record.answeredCount || totalItems} items reviewed</b><b>{record.failedCount || 0} follow-ups</b></div>
-      {monthlyInspectionSections.map((section, sectionIndex) => <section className="inspection-report-section" key={section.id}>
+      {(record.sections || monthlyInspectionSections).map((section, sectionIndex) => <section className="inspection-report-section" key={section.id}>
         <h2>{sectionIndex + 1}. {section.title}</h2>
         {section.items.map((item, itemIndex) => {
           const response = responses[item.id] || {};
@@ -270,7 +302,7 @@ async function createInspectionPdf(record: InspectionRecord) {
   y += 14;
 
   const responses = record.responses || {};
-  for (const [sectionIndex, section] of monthlyInspectionSections.entries()) {
+  for (const [sectionIndex, section] of (record.sections || monthlyInspectionSections).entries()) {
     addPageIfNeeded(48);
     pdf.setFillColor(235, 241, 242);
     pdf.roundedRect(margin, y - 14, pageWidth - margin * 2, 30, 5, 5, "F");
