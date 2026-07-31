@@ -166,8 +166,64 @@ function InspectionReport({ record, generating, download, close }: { record: Ins
   </div>;
 }
 
-async function photoData(url: string) {
-  const response = await fetch(url);
+type PdfPhoto = {
+  data: string;
+  width: number;
+  height: number;
+};
+
+async function photoData(url: string): Promise<PdfPhoto> {
+  const response = await fetch(`/api/inspection-photo?url=${encodeURIComponent(url)}`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Photo could not be loaded.");
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Photo format could not be decoded."));
+      element.src = objectUrl;
+    });
+    const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = longestEdge > 1800 ? 1800 / longestEdge : 1;
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Photo could not be prepared.");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    return { data: canvas.toDataURL("image/jpeg", 0.86), width, height };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function fittedPhotoSize(photo: PdfPhoto) {
+  const scale = Math.min(300 / photo.width, 210 / photo.height, 1);
+  return { width: photo.width * scale, height: photo.height * scale };
+}
+
+async function preloadPdfPhotos(record: InspectionRecord) {
+  const urls = Object.values(record.responses || {})
+    .map((response) => response.photoUrl)
+    .filter((url): url is string => Boolean(url));
+  const entries = await Promise.all(urls.map(async (url) => {
+    try {
+      return [url, await photoData(url)] as const;
+    } catch {
+      return [url, null] as const;
+    }
+  }));
+  return new Map(entries);
+}
+
+async function loadPdfBrandImage(path: string) {
+  const response = await fetch(path);
+  if (!response.ok) return null;
   const blob = await response.blob();
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -182,6 +238,10 @@ async function createInspectionPdf(record: InspectionRecord) {
   const margin = 42;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
+  const [photos, logo] = await Promise.all([
+    preloadPdfPhotos(record),
+    loadPdfBrandImage("/bright-learners-logo.png").catch(() => null),
+  ]);
   let y = margin;
   const addPageIfNeeded = (height: number) => {
     if (y + height > pageHeight - 48) {
@@ -198,8 +258,12 @@ async function createInspectionPdf(record: InspectionRecord) {
     y += lines.length * (size + 3);
   };
 
+  if (logo) {
+    pdf.addImage(logo, "PNG", margin, 24, 132, 64, undefined, "FAST");
+    y = 108;
+  }
   pdf.setTextColor(23, 52, 94);
-  writeWrapped("BRIGHT LEARNERS ACADEMY", 11, pageWidth - margin * 2, true);
+  if (!logo) writeWrapped("BRIGHT LEARNERS ACADEMY", 11, pageWidth - margin * 2, true);
   y += 5;
   writeWrapped("Monthly Facility Inspection Report", 22, pageWidth - margin * 2, true);
   y += 8;
@@ -228,14 +292,17 @@ async function createInspectionPdf(record: InspectionRecord) {
       if (answer.correctiveAction) writeWrapped(`Corrective action: ${answer.correctiveAction}`, 9);
       if (answer.responsiblePerson || answer.dueDate) writeWrapped(`Responsible: ${answer.responsiblePerson || "Not assigned"}${answer.dueDate ? ` · Due: ${answer.dueDate}` : ""}`, 9);
       if (answer.photoUrl) {
-        try {
-          addPageIfNeeded(100);
-          const image = await photoData(answer.photoUrl);
-          const format = image.startsWith("data:image/png") ? "PNG" : "JPEG";
-          pdf.addImage(image, format, margin, y, 120, 90, undefined, "FAST");
-          y += 99;
-        } catch {
-          writeWrapped(`Photo evidence: ${answer.photoUrl}`, 8);
+        const photo = photos.get(answer.photoUrl);
+        if (photo) {
+          const size = fittedPhotoSize(photo);
+          addPageIfNeeded(size.height + 18);
+          pdf.setDrawColor(218, 226, 230);
+          pdf.setFillColor(248, 250, 251);
+          pdf.roundedRect(margin - 5, y - 5, size.width + 10, size.height + 10, 6, 6, "FD");
+          pdf.addImage(photo.data, "JPEG", margin, y, size.width, size.height, undefined, "FAST");
+          y += size.height + 16;
+        } else {
+          writeWrapped("Photo evidence is stored with the secure electronic inspection record.", 8);
         }
       }
       y += 7;
