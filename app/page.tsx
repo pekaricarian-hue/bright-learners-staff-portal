@@ -376,7 +376,7 @@ export default function Home() {
   return (
     <main className="portal">
       <section className="workspace">
-        <header className="portal-topbar">
+        <header className="portal-topbar" data-portal={activePortal}>
           <Link className="portal-logo-link" href="/" onClick={() => setView(activePortal === "inspection" ? "director" : activePortal === "admin" ? "admin" : "dashboard")}><Image src="/bright-learners-logo.png" alt="Bright Learners Academy staff portal" width={210} height={102} priority /></Link>
           <nav aria-label="Portal">
             {activePortal === "learning" && <><button data-tour="dashboard-tab" className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button><button data-tour="learning-tab" className={view === "employee" ? "active" : ""} onClick={() => setView("employee")}>My Learning</button><button data-tour="resources-tab" className={view === "resources" ? "active" : ""} onClick={() => setView("resources")}>Resources</button></>}
