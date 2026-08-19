@@ -162,7 +162,7 @@ export default function InspectionReports({ userId, directorName, adminMode = fa
         )}
       </section>
     </>}
-    {activeDraft && <InspectionWorkflow userId={userId} directorName={directorName} location={activeDraft.location} close={() => setActiveDraft(null)} completed={() => { setActiveDraft(null); setRefreshKey((value) => value + 1); }} />}
+    {activeDraft && <InspectionWorkflow userId={userId} directorName={directorName} location={activeDraft.location} resumeInspectionId={activeDraft.id} close={() => setActiveDraft(null)} completed={() => { setActiveDraft(null); setRefreshKey((value) => value + 1); }} />}
     {activeReport && <InspectionReport record={activeReport} generating={generatingPdf === activeReport.id} download={() => void downloadPdf(activeReport)} close={() => setActiveReport(null)} />}
     {deleteTarget && <div className="inspection-validation-backdrop">
       <section className="inspection-validation-dialog compact-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="delete-record-title">

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { InspectionSection, monthlyInspectionSections } from "./inspection-data";
@@ -22,18 +22,21 @@ type Props = {
   userId: string;
   directorName: string;
   location: string;
+  resumeInspectionId?: string;
   close: () => void;
   completed: () => void;
 };
 
 const safe = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export default function InspectionWorkflow({ userId, directorName, location, close, completed }: Props) {
+export default function InspectionWorkflow({ userId, directorName, location, resumeInspectionId, close, completed }: Props) {
   const [inspectionId, setInspectionId] = useState("");
   const [sectionIndex, setSectionIndex] = useState(0);
   const [responses, setResponses] = useState<Record<string, Response>>({});
   const [overallNotes, setOverallNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [uploadingItem, setUploadingItem] = useState("");
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
@@ -59,10 +62,13 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         const template = await getDoc(doc(db, "contentOverrides", "inspection-template"));
         if (active && template.exists() && Array.isArray(template.data().sections)) setSections(template.data().sections);
         const pointer = await getDoc(doc(db, "inspectionDrafts", pointerId));
-        const existingId = pointer.exists() ? pointer.data().inspectionId : "";
+        const existingId = resumeInspectionId || (pointer.exists() ? pointer.data().inspectionId : "");
         if (existingId) {
           const draft = await getDoc(doc(db, "inspections", existingId));
           if (active && draft.exists() && draft.data().status === "draft") {
+            if (!pointer.exists() || pointer.data().inspectionId !== existingId) {
+              await setDoc(doc(db, "inspectionDrafts", pointerId), { inspectionId: existingId, userId, location, updatedAt: serverTimestamp() });
+            }
             setInspectionId(existingId);
             setResponses(draft.data().responses || {});
             setOverallNotes(draft.data().overallNotes || "");
@@ -97,7 +103,7 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
     }
     load();
     return () => { active = false; };
-  }, [directorName, location, pointerId, userId]);
+  }, [directorName, location, pointerId, resumeInspectionId, userId]);
 
   function persist(nextResponses: Record<string, Response>, nextSection = sectionIndex, nextNotes = overallNotes) {
     if (!inspectionId) return false;
@@ -180,24 +186,29 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
   }
 
   async function discardInspection() {
-    if (!inspectionId) return;
-    setSaving(true);
+    if (!inspectionId || discarding) return;
+    setDiscarding(true);
+    setMessage("Discarding inspection...");
     try {
       await saveChain.current;
-      await deleteDoc(doc(db, "inspections", inspectionId));
-      await deleteDoc(doc(db, "inspectionDrafts", pointerId));
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "inspections", inspectionId));
+      batch.delete(doc(db, "inspectionDrafts", pointerId));
+      await batch.commit();
       setDiscardConfirmationOpen(false);
       setExitConfirmationOpen(false);
       close();
-    } catch {
-      setMessage("The draft could not be discarded. Please try again.");
+    } catch (error) {
+      console.error("Inspection discard failed", error);
+      setMessage("The draft could not be discarded. Check your connection and try again.");
       setDiscardConfirmationOpen(false);
     } finally {
-      setSaving(false);
+      setDiscarding(false);
     }
   }
 
   async function submitInspection() {
+    if (submitting) return;
     const unanswered = allItems.filter((item) => !responses[item.id]?.result);
     const undocumentedExceptions = allItems.filter((item) =>
       (responses[item.id]?.result === "fail" || responses[item.id]?.result === "na") &&
@@ -225,9 +236,18 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       });
       return;
     }
-    setSaving(true);
+    if (!inspectionId) {
+      setMessage("The inspection is still opening. Wait a moment and try again.");
+      return;
+    }
+    setSubmitting(true);
+    setMessage("Completing inspection...");
     try {
-      await setDoc(doc(db, "inspections", inspectionId), {
+      // Checkbox and note changes autosave in sequence. Wait for that queue before
+      // the final write so a fast-moving tablet user cannot submit behind an older save.
+      await saveChain.current;
+      const batch = writeBatch(db);
+      batch.set(doc(db, "inspections", inspectionId), {
         status: "completed",
         responses,
         overallNotes,
@@ -240,12 +260,14 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
         completedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
-      await setDoc(doc(db, "inspectionDrafts", pointerId), { inspectionId: null, userId, location, updatedAt: serverTimestamp() });
+      batch.set(doc(db, "inspectionDrafts", pointerId), { inspectionId: null, userId, location, updatedAt: serverTimestamp() });
+      await batch.commit();
       completed();
-    } catch {
-      setMessage("Submission failed. Your draft is still saved; please try again.");
+    } catch (error) {
+      console.error("Inspection submission failed", error);
+      setMessage("Submission failed. Your draft is still saved. Check your connection and try again.");
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   }
 
@@ -300,24 +322,24 @@ export default function InspectionWorkflow({ userId, directorName, location, clo
       <label className="inspection-overall-notes">Section or inspection notes<textarea value={overallNotes} onChange={(event) => setOverallNotes(event.target.value)} onBlur={() => void persist(responses, sectionIndex, overallNotes)} placeholder="Optional general notes for this inspection..." /></label>
       <footer className="inspection-actions">
         <button className="outline-button" disabled={sectionIndex === 0} onClick={() => void moveSection(sectionIndex - 1)}>← Previous section</button>
-        {sectionIndex < sections.length - 1 ? <button className="primary-button" onClick={() => void moveSection(sectionIndex + 1)}>Save & next section →</button> : <button className="primary-button" disabled={saving} onClick={() => void submitInspection()}>Complete inspection →</button>}
+        {sectionIndex < sections.length - 1 ? <button className="primary-button" onClick={() => void moveSection(sectionIndex + 1)}>Save & next section →</button> : <button className="primary-button" disabled={submitting || uploadingItem !== "" || !inspectionId} onClick={() => void submitInspection()}>{submitting ? "Completing inspection..." : "Complete inspection →"}</button>}
       </footer>
     </section>
     {exitConfirmationOpen && <ExitConfirmation
       title="Save this inspection and exit?"
       message="Your answers, notes, photos and current section will be saved. You can resume this inspection later from the same location."
-      saving={saving}
+      saving={submitting || discarding || uploadingItem !== ""}
       stay={() => setExitConfirmationOpen(false)}
       saveAndExit={saveAndExit}
       discard={() => setDiscardConfirmationOpen(true)}
     />}
     {discardConfirmationOpen && <div className="inspection-validation-backdrop">
       <section className="inspection-validation-dialog compact-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="discard-title">
-        <button className="confirmation-close" onClick={() => setDiscardConfirmationOpen(false)} aria-label="Cancel discard">×</button>
+        <button className="confirmation-close" disabled={discarding} onClick={() => setDiscardConfirmationOpen(false)} aria-label="Cancel discard">×</button>
         <p className="eyebrow">Delete draft</p>
         <h2 id="discard-title">Are you sure?</h2>
         <p>This unfinished inspection and its saved answers will be permanently removed.</p>
-        <button className="danger-button" disabled={saving} onClick={() => void discardInspection()}>{saving ? "Discarding..." : "Yes, discard inspection"}</button>
+        <button className="danger-button" disabled={discarding} onClick={() => void discardInspection()}>{discarding ? "Discarding..." : "Yes, discard inspection"}</button>
       </section>
     </div>}
     {validationIssue && <div className="inspection-validation-backdrop">
