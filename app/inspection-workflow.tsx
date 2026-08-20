@@ -39,6 +39,7 @@ export default function InspectionWorkflow({ userId, directorName, location, res
   const [submitting, setSubmitting] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState("");
+  const [submissionError, setSubmissionError] = useState("");
   const [uploadingItem, setUploadingItem] = useState("");
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
@@ -254,13 +255,13 @@ export default function InspectionWorkflow({ userId, directorName, location, res
       return;
     }
     setSubmitting(true);
+    setSubmissionError("");
     setMessage("Completing inspection...");
     try {
       // Checkbox and note changes autosave in sequence. Wait for that queue before
       // the final write so a fast-moving tablet user cannot submit behind an older save.
       await saveChain.current;
-      const batch = writeBatch(db);
-      batch.set(doc(db, "inspections", inspectionId), {
+      await setDoc(doc(db, "inspections", inspectionId), {
         status: "completed",
         responses,
         overallNotes,
@@ -273,12 +274,23 @@ export default function InspectionWorkflow({ userId, directorName, location, res
         completedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
-      batch.set(doc(db, "inspectionDrafts", pointerId), { inspectionId: null, userId, location, updatedAt: serverTimestamp() });
-      await batch.commit();
+
+      // Completion is the authoritative operation. Pointer cleanup is deliberately
+      // non-blocking so a stale/missing pointer can never undo a valid submission.
+      await setDoc(doc(db, "inspectionDrafts", pointerId), {
+        inspectionId: null,
+        userId,
+        location,
+        updatedAt: serverTimestamp(),
+      }, { merge: true }).catch((pointerError) => {
+        console.warn("Inspection completed but draft pointer cleanup failed", pointerError);
+      });
       completed();
     } catch (error) {
       console.error("Inspection submission failed", error);
-      setMessage("Submission failed. Your draft is still saved. Check your connection and try again.");
+      const failureMessage = "The inspection could not be submitted. Your draft is still saved. Check your connection and try again.";
+      setMessage(failureMessage);
+      setSubmissionError(failureMessage);
     } finally {
       setSubmitting(false);
     }
@@ -377,6 +389,16 @@ export default function InspectionWorkflow({ userId, directorName, location, res
           <button className="outline-button" disabled={uploadingItem !== ""} onClick={() => void saveValidationAsDraft()}>Save as draft &amp; exit</button>
           <button className="text-button danger-text" disabled={uploadingItem !== ""} onClick={discardFromValidation}>Discard inspection</button>
         </div>
+      </section>
+    </div>}
+    {submissionError && <div className="inspection-validation-backdrop">
+      <section className="inspection-validation-dialog compact-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="submission-error-title">
+        <button className="confirmation-close" onClick={() => setSubmissionError("")} aria-label="Close submission error">×</button>
+        <span aria-hidden="true">!</span>
+        <p className="eyebrow">Submission not completed</p>
+        <h2 id="submission-error-title">Your draft is safe</h2>
+        <p>{submissionError}</p>
+        <button className="primary-button" onClick={() => setSubmissionError("")}>Return to inspection</button>
       </section>
     </div>}
   </div>;
