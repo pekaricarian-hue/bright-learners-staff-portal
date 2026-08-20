@@ -64,26 +64,40 @@ export default function InspectionWorkflow({ userId, directorName, location, res
       try {
         const template = await getDoc(doc(db, "contentOverrides", "inspection-template"));
         if (active && template.exists() && Array.isArray(template.data().sections)) setSections(template.data().sections);
-        const pointer = await getDoc(doc(db, "inspectionDrafts", pointerId));
-        const existingId = resumeInspectionId || (pointer.exists() ? pointer.data().inspectionId : "");
+        let pointerInspectionId = "";
+        if (!resumeInspectionId) {
+          try {
+            const pointer = await getDoc(doc(db, "inspectionDrafts", pointerId));
+            pointerInspectionId = pointer.exists() ? pointer.data().inspectionId || "" : "";
+          } catch (error) {
+            // Legacy pointer records may not contain the ownership fields now
+            // required by Firestore. They must not block a new inspection.
+            console.warn("Unable to read inspection pointer; starting a new draft.", error);
+          }
+        }
+        const existingId = resumeInspectionId || pointerInspectionId;
         if (existingId) {
-          const draft = await getDoc(doc(db, "inspections", existingId));
-          if (active && draft.exists() && draft.data().status === "draft") {
-            if (!pointer.exists() || pointer.data().inspectionId !== existingId) {
-              await setDoc(doc(db, "inspectionDrafts", pointerId), { inspectionId: existingId, userId, location, updatedAt: serverTimestamp() });
+          try {
+            const draft = await getDoc(doc(db, "inspections", existingId));
+            if (active && draft.exists() && draft.data().status === "draft") {
+              if (pointerInspectionId !== existingId) {
+                await setDoc(doc(db, "inspectionDrafts", pointerId), { inspectionId: existingId, userId, location, updatedAt: serverTimestamp() });
+              }
+              setInspectionId(existingId);
+              setResponses(draft.data().responses || {});
+              setOverallNotes(draft.data().overallNotes || "");
+              setSectionIndex(draft.data().sectionIndex || 0);
+              setMessage("Saved draft restored.");
+              return;
             }
-            setInspectionId(existingId);
-            setResponses(draft.data().responses || {});
-            setOverallNotes(draft.data().overallNotes || "");
-            setSectionIndex(draft.data().sectionIndex || 0);
-            setMessage("Saved draft restored.");
-            return;
+          } catch (error) {
+            // A legacy or inaccessible draft must not leave the workflow in a
+            // visually active but unwritable state. Start a clean draft below.
+            console.warn("Unable to restore inspection draft; starting a new one.", error);
           }
         }
         const newId = `${safe(location)}_${userId}_${Date.now()}`;
         if (!active) return;
-        setInspectionId(newId);
-        await setDoc(doc(db, "inspectionDrafts", pointerId), { inspectionId: newId, userId, location, updatedAt: serverTimestamp() });
         await setDoc(doc(db, "inspections", newId), {
           id: newId,
           userId,
@@ -99,6 +113,14 @@ export default function InspectionWorkflow({ userId, directorName, location, res
           startedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        setInspectionId(newId);
+        // The inspection is the source of truth. A pointer failure should not
+        // make an otherwise valid inspection unusable.
+        try {
+          await setDoc(doc(db, "inspectionDrafts", pointerId), { inspectionId: newId, userId, location, updatedAt: serverTimestamp() });
+        } catch (error) {
+          console.warn("Inspection created, but its resume pointer could not be saved.", error);
+        }
         if (active) setMessage("New monthly inspection started.");
       } catch {
         if (active) setMessage("Unable to load the saved draft. Check your connection and try again.");
