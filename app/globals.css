@@ -1044,9 +1044,13 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   padding: 22px;
   background: rgba(15, 37, 69, .54);
   backdrop-filter: blur(8px);
+  isolation: isolate;
+  pointer-events: auto;
 }
 
 .inspection-workflow {
+  position: relative;
+  z-index: 1;
   width: min(1180px, 100%);
   max-height: calc(100vh - 44px);
   overflow: auto;
@@ -1409,9 +1413,12 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   padding: 18px;
   background: rgba(15, 37, 69, .68);
   backdrop-filter: blur(7px);
+  pointer-events: auto;
 }
 
 .inspection-validation-dialog {
+  position: relative;
+  z-index: 1;
   width: min(470px, 100%);
   padding: 28px;
   border: 2px solid #17345e;
@@ -1505,9 +1512,12 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   padding: 20px;
   background: rgba(15, 37, 69, .62);
   backdrop-filter: blur(7px);
+  pointer-events: auto;
 }
 
 .exit-confirmation {
+  position: relative;
+  z-index: 1;
   width: min(480px, 100%);
   padding: 30px;
   border: 2px solid #17345e;

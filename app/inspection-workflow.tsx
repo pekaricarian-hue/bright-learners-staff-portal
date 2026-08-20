@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
@@ -293,7 +294,7 @@ export default function InspectionWorkflow({ userId, directorName, location, res
   }
 
   const section = sections[sectionIndex] || sections[0];
-  return <div className="inspection-backdrop">
+  const workflow = <div className="inspection-backdrop">
     <section className="inspection-workflow" role="dialog" aria-modal="true" aria-labelledby="inspection-title">
       <header className="inspection-workflow-header">
         <div><p className="eyebrow">Monthly self-assessment · {location}</p><h1 id="inspection-title">{section.title}</h1><span>Section {sectionIndex + 1} of {sections.length}</span></div>
@@ -366,4 +367,6 @@ export default function InspectionWorkflow({ userId, directorName, location, res
       </section>
     </div>}
   </div>;
+
+  return createPortal(workflow, document.body);
 }
