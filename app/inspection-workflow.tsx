@@ -282,6 +282,16 @@ export default function InspectionWorkflow({ userId, directorName, location, res
     }));
   }
 
+  async function saveValidationAsDraft() {
+    setValidationIssue(null);
+    await saveAndExit();
+  }
+
+  function discardFromValidation() {
+    setValidationIssue(null);
+    setDiscardConfirmationOpen(true);
+  }
+
   const section = sections[sectionIndex] || sections[0];
   return <div className="inspection-backdrop">
     <section className="inspection-workflow" role="dialog" aria-modal="true" aria-labelledby="inspection-title">
@@ -348,8 +358,11 @@ export default function InspectionWorkflow({ userId, directorName, location, res
         <p className="eyebrow">Cannot submit yet</p>
         <h2 id="inspection-validation-title">{validationIssue.title}</h2>
         <p>{validationIssue.message}</p>
-        <button className="primary-button" onClick={continueChecklist}>Continue with checklist</button>
-        <button className="text-button" onClick={() => setValidationIssue(null)}>Stay here</button>
+        <div className="inspection-validation-actions">
+          <button className="primary-button" onClick={continueChecklist}>Continue with checklist</button>
+          <button className="outline-button" disabled={uploadingItem !== ""} onClick={() => void saveValidationAsDraft()}>Save as draft &amp; exit</button>
+          <button className="text-button danger-text" disabled={uploadingItem !== ""} onClick={discardFromValidation}>Discard inspection</button>
+        </div>
       </section>
     </div>}
   </div>;

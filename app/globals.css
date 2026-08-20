@@ -1446,6 +1446,16 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   line-height: 1.55;
 }
 
+.inspection-validation-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.inspection-validation-actions .primary-button,
+.inspection-validation-actions .outline-button {
+  width: 100%;
+}
+
 @media (max-width: 720px) {
   .inspection-backdrop { padding: 0; }
   .inspection-workflow { max-height: 100vh; height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
