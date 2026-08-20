@@ -1453,6 +1453,17 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   line-height: 1.55;
 }
 
+.inspection-validation-dialog .inspection-discard-error {
+  margin: -8px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid #d88b82;
+  border-radius: 10px;
+  background: #fff0ed;
+  color: #8f2f28;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .inspection-validation-actions {
   display: grid;
   gap: 12px;

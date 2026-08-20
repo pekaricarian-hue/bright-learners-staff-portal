@@ -38,6 +38,7 @@ export default function InspectionWorkflow({ userId, directorName, location, res
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState("");
   const [uploadingItem, setUploadingItem] = useState("");
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
@@ -189,20 +190,31 @@ export default function InspectionWorkflow({ userId, directorName, location, res
   async function discardInspection() {
     if (!inspectionId || discarding) return;
     setDiscarding(true);
+    setDiscardError("");
     setMessage("Discarding inspection...");
     try {
       await saveChain.current;
       const batch = writeBatch(db);
-      batch.delete(doc(db, "inspections", inspectionId));
-      batch.delete(doc(db, "inspectionDrafts", pointerId));
+      batch.update(doc(db, "inspections", inspectionId), {
+        status: "discarded",
+        discardedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      batch.set(doc(db, "inspectionDrafts", pointerId), {
+        inspectionId: null,
+        userId,
+        location,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
       await batch.commit();
       setDiscardConfirmationOpen(false);
       setExitConfirmationOpen(false);
       close();
     } catch (error) {
       console.error("Inspection discard failed", error);
-      setMessage("The draft could not be discarded. Check your connection and try again.");
-      setDiscardConfirmationOpen(false);
+      const failureMessage = "The draft could not be discarded. Check your connection and try again.";
+      setMessage(failureMessage);
+      setDiscardError(failureMessage);
     } finally {
       setDiscarding(false);
     }
@@ -350,6 +362,7 @@ export default function InspectionWorkflow({ userId, directorName, location, res
         <p className="eyebrow">Delete draft</p>
         <h2 id="discard-title">Are you sure?</h2>
         <p>This unfinished inspection and its saved answers will be permanently removed.</p>
+        {discardError && <p className="inspection-discard-error" role="alert">{discardError}</p>}
         <button className="danger-button" disabled={discarding} onClick={() => void discardInspection()}>{discarding ? "Discarding..." : "Yes, discard inspection"}</button>
       </section>
     </div>}
