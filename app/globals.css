@@ -769,6 +769,68 @@ body{font-family:var(--font-body),sans-serif;color:var(--navy);background:#f8faf
   background: #fff7e8;
 }
 
+.quiz-result.save-error {
+  border: 1px solid #df8e82;
+  background: #fff0ed;
+}
+
+.module-completion-backdrop {
+  position: fixed;
+  z-index: 23000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 37, 69, .72);
+  backdrop-filter: blur(9px);
+}
+
+.module-completion-dialog {
+  width: min(540px, 100%);
+  padding: 36px;
+  border: 2px solid #17345e;
+  border-radius: 22px;
+  background: #fffdf8;
+  box-shadow: 9px 10px 0 #f4c85e;
+  text-align: center;
+}
+
+.module-completion-mark {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 18px;
+  place-items: center;
+  border: 2px solid #17345e;
+  border-radius: 50%;
+  background: #e7f5df;
+  color: #285e38;
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.module-completion-dialog h2 {
+  margin: 7px 0 5px;
+  color: #17345e;
+  font-size: clamp(32px, 6vw, 46px);
+}
+
+.module-completion-dialog h3 {
+  margin: 0 0 14px;
+  color: #17345e;
+  font-size: 20px;
+}
+
+.module-completion-dialog > p:not(.eyebrow) {
+  margin: 0 auto 25px;
+  color: #637287;
+  line-height: 1.6;
+}
+
+.module-completion-dialog .primary-button {
+  width: 100%;
+}
+
 .quiz-result > b {
   color: #142f55;
   font-size: 1.25rem;

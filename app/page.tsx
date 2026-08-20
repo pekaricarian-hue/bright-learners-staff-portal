@@ -633,6 +633,7 @@ function EmployeeView({ userId, email, displayName, location, province }: { user
   const [selectedModule, setSelectedModule] = useState<number | null>(null);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [lessonExitOpen, setLessonExitOpen] = useState(false);
+  const [moduleCelebration, setModuleCelebration] = useState<{ title: string; allComplete: boolean } | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const defaultModules = province === "AB" ? albertaModules : saskatchewanModules;
   const [customModules, setCustomModules] = useState<typeof defaultModules | null>(null);
@@ -715,6 +716,10 @@ function EmployeeView({ userId, email, displayName, location, province }: { user
         updatedAt: serverTimestamp(),
       }, { merge: true });
     }
+    if (passed) {
+      setLessonExitOpen(false);
+      setModuleCelebration({ title: modules[moduleIndex].title, allComplete: nextCompleted.length === modules.length });
+    }
   }
 
   return <div className="content learning-content">
@@ -777,6 +782,16 @@ function EmployeeView({ userId, email, displayName, location, province }: { user
         stay={() => setLessonExitOpen(false)}
         saveAndExit={() => { setLessonExitOpen(false); setLessonOpen(false); setSelectedModule(null); }}
       />}
+    </div>}
+    {moduleCelebration && <div className="module-completion-backdrop">
+      <section className="module-completion-dialog" role="alertdialog" aria-modal="true" aria-labelledby="module-completion-title">
+        <span className="module-completion-mark" aria-hidden="true">✓</span>
+        <p className="eyebrow">Knowledge check passed · 100%</p>
+        <h2 id="module-completion-title">Congratulations!</h2>
+        <h3>{moduleCelebration.title} is complete.</h3>
+        <p>{moduleCelebration.allComplete ? "You have completed every required module. Your Bright Learners Academy orientation certificate is now available from your profile." : "Your result and completion time have been saved. You can continue with any remaining module from My Learning."}</p>
+        <button className="primary-button" onClick={() => { setModuleCelebration(null); setLessonExitOpen(false); setLessonOpen(false); setSelectedModule(null); }}>Return to My Learning →</button>
+      </section>
     </div>}
   </div>;
 }
@@ -1332,13 +1347,18 @@ function ModuleQuiz({ questions, moduleIndex, goToSlide, onAttempt }: { question
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [result, setResult] = useState<{ score: number; missed: QuizQuestion[] } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   async function submit() {
     const missed = questions.filter((question) => answers[question.id] !== question.correct);
     const score = Math.round(((questions.length - missed.length) / questions.length) * 100);
     setSaving(true);
+    setSaveError("");
     try {
       await onAttempt(score, answers);
       setResult({ score, missed });
+    } catch (error) {
+      console.error("Knowledge-check submission failed", error);
+      setSaveError("Your result could not be saved. Check your connection and submit the knowledge check again.");
     } finally {
       setSaving(false);
     }
@@ -1352,7 +1372,7 @@ function ModuleQuiz({ questions, moduleIndex, goToSlide, onAttempt }: { question
       {question.options.map((option, optionIndex) => <label key={option}><input type="radio" name={question.id} checked={answers[question.id] === optionIndex} onChange={() => { setAnswers((current) => ({ ...current, [question.id]: optionIndex })); setResult(null); }} />{option}</label>)}
     </fieldset>)}
     <button className="primary-button" disabled={Object.keys(answers).length !== questions.length || saving} onClick={submit}>{saving ? "Saving attempt…" : "Submit knowledge check"}</button>
-    {result && result.score === 100 && <div className="quiz-result passed" role="status"><b>100% - module complete.</b><p>Your result and completion time have been saved. You can take the remaining modules in any order.</p></div>}
+    {saveError && <div className="quiz-result save-error" role="alert"><b>We could not save this attempt.</b><p>{saveError}</p></div>}
     {result && result.score < 100 && <div className="quiz-result needs-review" role="status"><b>{result.score}% - review required.</b><p>You need 100% to pass. Review these exact slides, then return and answer the missed questions again.</p>{result.missed.map((question) => <article key={question.id}><div><strong>Review Module {moduleIndex + 1}, Slide {question.reviewSlide + 1}</strong><span>{question.explanation}</span><small>{question.ref}</small></div><button className="outline-button" onClick={() => goToSlide(question.reviewSlide)}>Review slide {question.reviewSlide + 1}</button></article>)}</div>}
   </section>;
 }
